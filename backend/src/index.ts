@@ -8,6 +8,10 @@ import { twilioRouter } from './api/twilio-webhook';
 
 dotenv.config();
 
+console.log('[Hero] Starting server...');
+console.log('[Hero] SUPABASE_URL set:', !!process.env.SUPABASE_URL);
+console.log('[Hero] PORT:', process.env.PORT || 3000);
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
