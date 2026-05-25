@@ -77,6 +77,13 @@ export function Layout({ children }: Props) {
         }}>
           알림 이력
         </Link>
+        <Link to="/register" style={{
+          color: location.pathname === '/register' ? '#2563eb' : '#64748b',
+          textDecoration: 'none',
+          fontWeight: location.pathname === '/register' ? 600 : 400,
+        }}>
+          농업인 등록
+        </Link>
       </nav>
 
       {/* 메인 콘텐츠 */}
