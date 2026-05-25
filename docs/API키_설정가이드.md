@@ -131,17 +131,20 @@
 
 ---
 
-### 7. 카카오맵 API — 주소 변환
+### 7. 카카오맵 API — 주소 변환 + 대시보드 지도
 
-| 키 | 값 |
-|---|---|
-| `KAKAO_MAP_API_KEY` | REST API 키 |
+| 용도 | 환경변수 | 키 종류 | 파일 |
+|---|---|---|---|
+| 백엔드 역지오코딩 | `KAKAO_MAP_API_KEY` | **REST API** 키 | `backend/.env` |
+| 대시보드 지도 | `REACT_APP_KAKAO_MAP_KEY` | **JavaScript** 키 | `dashboard/.env` |
 
 **발급 방법:**
 1. https://developers.kakao.com → 로그인
 2. 내 애플리케이션 → 애플리케이션 추가 (이름: Hero)
-3. 앱 키 → REST API 키 복사
-4. 플랫폼 → Web → 사이트 도메인 등록 (배포 URL)
+3. **카카오맵 → 사용 설정 ON** (필수)
+4. 앱 키 → REST API 키 → `backend/.env`
+5. 앱 키 → **JavaScript 키** → `dashboard/.env`
+6. 플랫폼 → Web → `http://localhost:3000` (CRA 기본 포트) 등록
 
 ---
 

@@ -81,7 +81,19 @@ userRouter.get('/:id', async (req: Request, res: Response) => {
     .select('*')
     .eq('user_id', id);
 
-  return res.json({ ...user, guardians: guardians || [] });
+  const { data: latestLocation } = await supabase
+    .from('health_data')
+    .select('lat, lng, timestamp')
+    .eq('user_id', id)
+    .order('timestamp', { ascending: false })
+    .limit(1)
+    .single();
+
+  return res.json({
+    ...user,
+    guardians: guardians || [],
+    latest_location: latestLocation || null,
+  });
 });
 
 // 기준선 조회
