@@ -151,78 +151,111 @@ flowchart TD
 
 <br/>
 
-## 🛠 기술 스택
+## 🛠 기술스택
 
-### Frontend / Mobile
+### Mobile (Android)
 
-| 역할 | 기술 |
+| 역할 | 종류 |
 |---|---|
-| Android App | ![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white) ![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white) |
-| 헬스 데이터 | ![Health Connect](https://img.shields.io/badge/Health_Connect-34A853?style=for-the-badge&logo=google&logoColor=white) |
-| 백그라운드 | ![Android](https://img.shields.io/badge/Foreground_Service-3DDC84?style=for-the-badge&logo=android&logoColor=white) ![Android](https://img.shields.io/badge/WorkManager-3DDC84?style=for-the-badge&logo=android&logoColor=white) |
-| 관리자 대시보드 (PC) | ![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black) |
+| Framework | ![React Native](https://img.shields.io/badge/React_Native-61DAFB?style=for-the-badge&logo=react&logoColor=black) |
+| Language | ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) |
+| Health Data | ![Health Connect](https://img.shields.io/badge/Health_Connect-34A853?style=for-the-badge&logo=google&logoColor=white) |
+| Background | ![Notifee](https://img.shields.io/badge/Notifee-3DDC84?style=for-the-badge&logo=android&logoColor=white) |
+| Location | ![Geolocation](https://img.shields.io/badge/Geolocation_Service-4285F4?style=for-the-badge&logo=googlemaps&logoColor=white) |
+
+### Dashboard (PC)
+
+| 역할 | 종류 |
+|---|---|
+| Framework | ![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black) |
+| Language | ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) |
+| Map | ![Kakao Map](https://img.shields.io/badge/Kakao_Map-FFCD00?style=for-the-badge&logo=kakao&logoColor=black) |
 
 ### Backend
 
-| 역할 | 기술 |
+| 역할 | 종류 |
 |---|---|
-| 서버 | ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) |
+| Runtime | ![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white) |
+| Framework | ![Express](https://img.shields.io/badge/Express-000000?style=for-the-badge&logo=express&logoColor=white) |
+| Language | ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) |
 | DB | ![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white) |
 
-### AI / 통신
+### AI / Communication
 
-| 역할 | 기술 |
+| 역할 | 종류 |
 |---|---|
-| 음성 통화 | ![Twilio Voice](https://img.shields.io/badge/Twilio_Voice-F22F46?style=for-the-badge&logo=twilio&logoColor=white) |
-| STT (한국어) | ![Clova Speech](https://img.shields.io/badge/Clova_Speech-03C75A?style=for-the-badge) |
-| 의도 판단 | ![Claude API](https://img.shields.io/badge/Claude_API-D97757?style=for-the-badge) |
-| 알림 | ![Twilio SMS](https://img.shields.io/badge/Twilio_SMS-F22F46?style=for-the-badge&logo=twilio&logoColor=white)
- sms 발신 외 앱에 보호자 role 추가하여 앱으로 알림 및 위치 주는 방법 고민중.
+| Voice Call | ![Twilio](https://img.shields.io/badge/Twilio_Voice-F22F46?style=for-the-badge&logo=twilio&logoColor=white) |
+| STT (Korean) | ![Clova Speech](https://img.shields.io/badge/Clova_Speech-03C75A?style=for-the-badge&logo=naver&logoColor=white) |
+| Intent Classification | ![Claude](https://img.shields.io/badge/Claude_API-D97757?style=for-the-badge&logo=anthropic&logoColor=white) |
+| SMS | ![Twilio SMS](https://img.shields.io/badge/Twilio_SMS-F22F46?style=for-the-badge&logo=twilio&logoColor=white) |
 
-### 외부 API
+### External API
 
-| 역할 | 기술 |
+| 역할 | 종류 |
 |---|---|
-| 지도 | ![Kakao Map](https://img.shields.io/badge/Kakao_Map-FFCD00?style=for-the-badge) |
+| Geocoding | ![Kakao Map](https://img.shields.io/badge/Kakao_Map-FFCD00?style=for-the-badge&logo=kakao&logoColor=black) |
+| Weather | ![기상청](https://img.shields.io/badge/기상청_API-0078D4?style=for-the-badge) |
 
-### Infra / Tools
+### Infra / Deploy
 
-| 역할 | 기술 |
+| 역할 | 종류 |
 |---|---|
-| 버전 관리 | ![Git](https://img.shields.io/badge/Git-F05033?style=for-the-badge&logo=git&logoColor=white) ![GitHub](https://img.shields.io/badge/GitHub-121011?style=for-the-badge&logo=github&logoColor=white) |
-| 배포 | ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) |
-| 협업 | ![Figma](https://img.shields.io/badge/Figma-F24E1E?style=for-the-badge&logo=figma&logoColor=white) ![Notion](https://img.shields.io/badge/Notion-000000?style=for-the-badge&logo=notion&logoColor=white) |
+| Backend Deploy | ![Railway](https://img.shields.io/badge/Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white) |
+| Frontend Deploy | ![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white) |
+| Version Control | ![Git](https://img.shields.io/badge/Git-F05033?style=for-the-badge&logo=git&logoColor=white) ![GitHub](https://img.shields.io/badge/GitHub-121011?style=for-the-badge&logo=github&logoColor=white) |
+
+### Common
+
+| 역할 | 종류 |
+|---|---|
+| Design | ![Figma](https://img.shields.io/badge/Figma-F24E1E?style=for-the-badge&logo=figma&logoColor=white) |
+| Docs / PM | ![Notion](https://img.shields.io/badge/Notion-000000?style=for-the-badge&logo=notion&logoColor=white) |
+| Wearable | ![Galaxy Fit 3](https://img.shields.io/badge/Galaxy_Fit_3-1428A0?style=for-the-badge&logo=samsung&logoColor=white) |
 
 <br/>
 
 ## 🗓 개발 로드맵
 
-### Phase 1 — MVP (현재 작업 중)
+### Phase 1 — MVP ✅ (코드 구현 완료, 실기기 테스트 진행 중)
 
-- [ ] Backend: `/health`, `/alert` API
-- [ ] Backend: 2단계 이상 감지 로직 (심박 상승 + 심박 급락 OR 분기)
-- [ ] Backend: 환경 가중치 (체감온도 33°C↑ 시 관찰 1분 단축)
-- [ ] Backend: AI 콜 (Twilio + Clova STT + Claude `safe`/`emergency`/`unclear`)
-- [ ] Backend: 보건소 자동 콜 + SMS + Slack Webhook
-- [ ] Android: ForegroundService + Health Connect + Retrofit
-- [ ] Android: 앱 최초 설치 시 과거 7일 심박 데이터 연동
-- [ ] Android: GPS 위치 수집 (정상 5분 / 이상 감지 후 30초)
-- [ ] PC 대시보드: 농업인 목록 + 알림 이력 + 기준선 표시
+- [x] Backend: `/health`, `/alert`, `/users/register` API
+- [x] Backend: 2단계 이상 감지 로직 (심박 상승 + 심박 급락 분기)
+- [x] Backend: 환경 가중치 (체감온도 33°C↑ 시 관찰 1분 단축)
+- [x] Backend: AI 콜 (Twilio + Clova STT + Claude `safe`/`emergency`/`unclear`)
+- [x] Backend: 보건소 자동 콜 + SMS
+- [x] Mobile: ForegroundService + Health Connect + 서버 연동 (코드)
+- [x] Mobile: 앱 최초 설치 시 과거 7일 심박 데이터 연동 (코드)
+- [x] Mobile: GPS 위치 수집 — 정상 5분 / 이상 감지 후 30초 (코드)
+- [x] PC 대시보드: 농업인 목록 + 알림 이력 + 개인 상세
+- [x] 배포: Railway (백엔드) + Vercel (대시보드 + 모바일 웹)
+- [ ] Android 빌드 환경 구축 + 실기기 테스트
+- [ ] E2E 테스트 수행
 
 ### Phase 2 — 안정화
 
+- [x] 기상청 API 연동
+- [x] 카카오맵 역지오코딩 연동
+- [x] 알림 이력 조회 + 오탐 처리 로직
+- [x] 대상자 등록/관리 화면
 - [ ] 기준선 주간 자동 갱신
-- [ ] 기상청 API 연동 + 예방 알림 발송
-- [ ] 알림 이력 조회 + 오탐 처리 로직
-- [ ] 대상자 등록/관리 화면
 - [ ] 통계 화면
 
-### Phase 3 — 고도화
+### Phase 3 — 고도화 (검토 중)
 
+- [ ] AI콜 음성을 가족 목소리로 변환 (Voice Cloning)
 - [ ] Samsung Health SDK 직접 연동 (실시간성 향상)
-- [ ] 공공 API 자동 출동 연계
-- [ ] QR 코드 초기 등록
 - [ ] 관리자 대시보드 실시간 WebSocket
+- [ ] 보호자 앱 role 추가 (위치 공유 + 알림)
+
+<br/>
+
+## 🌐 배포 현황
+
+| 서비스 | 플랫폼 | URL | 상태 |
+|---|---|---|---|
+| 백엔드 API | ![Railway](https://img.shields.io/badge/Railway-0B0D0E?style=flat-square&logo=railway&logoColor=white) | `daro-reporter-production.up.railway.app` | ✅ Live |
+| 관리자 대시보드 | ![Vercel](https://img.shields.io/badge/Vercel-000?style=flat-square&logo=vercel&logoColor=white) | https://daro-reporter.vercel.app | ✅ Live |
+| 모바일 웹앱 | ![Vercel](https://img.shields.io/badge/Vercel-000?style=flat-square&logo=vercel&logoColor=white) | https://daro-reporter-mobile.vercel.app | ✅ Live |
 
 <br/>
 
@@ -231,34 +264,48 @@ flowchart TD
 | 잘라낸 것 | 대체 방안 |
 |---|---|
 | 사용자별 기준선 자동 갱신 (주간) | 설치 시 1회 산출 후 고정, 신규는 75bpm 7일 후 갱신 |
-| 관리자 대시보드 실시간 WebSocket | PC 대시보드(폴링) + SMS + Slack Webhook 병용 |
+| 관리자 대시보드 실시간 WebSocket | PC 대시보드(폴링) + SMS 병용 |
 | Samsung Health SDK 직접 연동 | Health Connect 경유 |
 | Redis | in-memory + Supabase row 처리 |
+| Slack Webhook | 사용하지 않기로 결정 |
 
 <br/>
 
 ## 📁 저장소 구조
 
 ```text
-hero/
-├── backend/                 # Node.js + TypeScript
+daro-reporter/
+├── backend/                 # Node.js + Express + TypeScript
 │   ├── src/
-│   │   ├── api/             # /health, /alert 엔드포인트
-│   │   ├── detection/       # 2단계 감지 로직 (A: 상승 / B: 급락)
-│   │   ├── state/           # 사용자 상태머신 + 쿨다운
-│   │   ├── ai-call/         # Twilio + Clova STT + Claude
-│   │   ├── notify/          # SMS / Slack / 보건소 콜
-│   │   └── db/              # Supabase 클라이언트 + 마이그레이션
-│   └── package.json
+│   │   ├── api/             # /health, /alert, /users 엔드포인트
+│   │   ├── detection/       # 2단계 감지 로직 + 기준선 계산
+│   │   ├── state/           # 사용자 상태머신 (normal → alert)
+│   │   ├── ai-call/         # Twilio 발신 + Clova STT + Claude 분류
+│   │   ├── notify/          # SMS + 보건소 콜
+│   │   ├── external/        # 기상청 API + 카카오맵 API
+│   │   └── db/              # Supabase 클라이언트 + schema.sql
+│   └── scripts/             # test-call.ts 등 유틸
 │
-├── android/                 # Kotlin + Jetpack Compose
-│   └── app/src/main/
+├── mobile/                  # React Native + TypeScript (Android + Web)
+│   ├── src/
+│   │   ├── screens/         # 온보딩, 홈, 설정
+│   │   ├── services/        # Health Connect, GPS, Background, DataSync
+│   │   ├── hooks/           # useHealthData, useUser
+│   │   ├── api/             # 서버 통신 클라이언트
+│   │   └── mocks/           # 웹 버전용 mock
+│   └── App.web.tsx          # 웹 버전 엔트리
 │
-├── dashboard/               # PC 관리자 대시보드 (React)
+├── dashboard/               # PC 관리자 대시보드 (React + TypeScript)
+│   └── src/
+│       ├── pages/           # 농업인 목록, 알림 이력, 개인 상세, 등록
+│       └── components/      # 레이아웃, 카카오맵 뷰
 │
-├── docs/                    # 설계 문서 / API 명세 / 회의록
+├── docs/                    # 프로젝트 문서
+│   ├── 현황_0526.md         # 현재 진행 상황 (최신)
+│   ├── 진행_보고서.md
+│   ├── Android_빌드_가이드.md
+│   └── legacy/             # 이전 문서 아카이브
 │
-├── .env.example
 └── README.md
 ```
 
@@ -275,6 +322,23 @@ main ← 안정 버전 (배포 기준)
       ├── feat/dashboard/#이슈번호-설명   (PC 대시보드)
       └── fix/#이슈번호-설명
 ```
+
+<br/>
+
+## 🚀 빠른 시작
+
+```bash
+git clone https://github.com/ryeong03/daro-reporter.git
+cd daro-reporter
+```
+
+| 앱 | 개발 서버 | 빌드 |
+|---|---|---|
+| Backend | `cd backend && npm install && npm run dev` | `npm run build` |
+| Dashboard | `cd dashboard && npm install && npm start` | `npm run build` |
+| Mobile (Web) | `cd mobile && npm install && npm run web` | `npm run build:web` |
+
+> 상세 환경변수 설정은 `docs/legacy/API키_설정가이드.md` 참고
 
 <br/>
 
@@ -297,9 +361,6 @@ CLOVA_SPEECH_SECRET=
 
 # Claude
 ANTHROPIC_API_KEY=
-
-# Slack
-SLACK_WEBHOOK_URL=
 
 # 외부 API
 KMA_API_KEY=
