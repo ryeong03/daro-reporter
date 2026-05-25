@@ -45,7 +45,10 @@ export function KakaoMapView({ markers, height = 300, emptyMessage }: KakaoMapVi
 
   useEffect(() => {
     if (!APP_KEY) {
-      setError('dashboard/.env 에 REACT_APP_KAKAO_MAP_KEY (JavaScript 키)를 설정하세요.');
+      setError(
+        'dashboard/.env 에 REACT_APP_KAKAO_MAP_KEY (JavaScript 키)를 넣은 뒤, ' +
+          '터미널에서 Ctrl+C 로 서버를 끄고 npm start 를 다시 실행하세요. (.env 는 저장 후 재시작 필수)'
+      );
       return;
     }
 
@@ -141,7 +144,8 @@ export function KakaoMapView({ markers, height = 300, emptyMessage }: KakaoMapVi
           <div style={{ fontWeight: 600, marginBottom: 8 }}>카카오맵을 불러올 수 없습니다</div>
           <div style={{ color: '#991b1b', fontSize: 13 }}>{error}</div>
           <div style={{ marginTop: 12, color: '#64748b', fontSize: 12 }}>
-            developers.kakao.com → Web 플랫폼에 <code>http://localhost:3000</code> 등록 · JavaScript 키 사용
+            developers.kakao.com → 플랫폼 → Web → 사이트 도메인에{' '}
+            <code>http://localhost:3000</code> 과 실제 접속 주소(3001이면 3001도) 등록
           </div>
         </div>
       </div>

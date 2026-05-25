@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api, Alert, CallLog } from '../api/client';
+import { KakaoMapView } from '../components/KakaoMapView';
 
 interface UserDetail {
   id: string;
@@ -12,6 +13,7 @@ interface UserDetail {
   baseline_bpm: number;
   baseline_updated_at: string;
   guardians: { name: string; phone: string; relation: string | null }[];
+  latest_location: { lat: number; lng: number; timestamp: string } | null;
 }
 
 export function UserDetailPage() {
@@ -32,6 +34,19 @@ export function UserDetailPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  const mapMarkers = useMemo(() => {
+    if (!user?.latest_location) return [];
+    return [
+      {
+        id: user.id,
+        name: user.name,
+        lat: user.latest_location.lat,
+        lng: user.latest_location.lng,
+        subtitle: `최근 위치 · ${new Date(user.latest_location.timestamp).toLocaleString('ko-KR')}`,
+      },
+    ];
+  }, [user]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>불러오는 중...</div>;
   if (!user) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>사용자를 찾을 수 없습니다</div>;
@@ -68,17 +83,13 @@ export function UserDetailPage() {
         </div>
       </div>
 
-      {/* GPS 지도 placeholder */}
-      <div style={{
-        ...cardStyle,
-        marginTop: 24,
-        height: 200,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#f1f5f9',
-      }}>
-        <span style={{ color: '#64748b' }}>🗺️ 개인 GPS 위치 (카카오맵)</span>
+      <div style={{ marginTop: 24 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#1e293b' }}>GPS 위치</h3>
+        <KakaoMapView
+          markers={mapMarkers}
+          height={240}
+          emptyMessage="아직 GPS 기록이 없습니다. 헬스 데이터가 전송되면 표시됩니다."
+        />
       </div>
 
       {/* 알림 이력 */}
