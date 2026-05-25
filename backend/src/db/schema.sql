@@ -6,10 +6,25 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   phone TEXT NOT NULL UNIQUE,
   device_id TEXT,
+  gender TEXT CHECK (gender IN ('male', 'female')),
+  birth_date TEXT,
   baseline_bpm NUMERIC(5,1) DEFAULT 75.0,
+  baseline_sigma NUMERIC(5,1) DEFAULT 10.0,
   baseline_updated_at TIMESTAMPTZ DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 보호자 (농업인 1:N)
+CREATE TABLE IF NOT EXISTS guardians (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  relation TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_guardians_user ON guardians(user_id);
 
 -- 헬스 데이터 (Android → Backend)
 CREATE TABLE IF NOT EXISTS health_data (
@@ -31,8 +46,8 @@ CREATE INDEX idx_health_data_user_ts ON health_data(user_id, timestamp DESC);
 CREATE TABLE IF NOT EXISTS alerts (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  event_type TEXT NOT NULL CHECK (event_type IN ('heatstroke', 'syncope')),
-  status TEXT NOT NULL DEFAULT 'triggered' CHECK (status IN ('triggered', 'calling', 'safe', 'emergency', 'closed_safe', 'closed_emergency')),
+  event_type TEXT NOT NULL CHECK (event_type IN ('heatstroke', 'syncope', 'fall')),
+  status TEXT NOT NULL DEFAULT 'triggered' CHECK (status IN ('triggered', 'calling', 'safe', 'emergency', 'closed_safe', 'closed_emergency', 'false_alarm')),
   lat NUMERIC(10,7),
   lng NUMERIC(10,7),
   created_at TIMESTAMPTZ DEFAULT NOW(),
