@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchUsers, User } from '../api/client';
+import { KakaoMapView } from '../components/KakaoMapView';
 
 export function DashboardPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -21,6 +22,22 @@ export function DashboardPage() {
     }
   };
 
+  const mapMarkers = useMemo(
+    () =>
+      users
+        .filter((u) => u.latest_location)
+        .map((u) => ({
+          id: u.id,
+          name: u.name,
+          lat: u.latest_location!.lat,
+          lng: u.latest_location!.lng,
+          status: u.status,
+          subtitle:
+            u.status === 'emergency' ? '응급' : u.status === 'warning' ? '주의' : '정상',
+        })),
+    [users]
+  );
+
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>불러오는 중...</div>;
 
   return (
@@ -30,19 +47,7 @@ export function DashboardPage() {
         <span style={{ color: '#64748b', fontSize: 14 }}>총 {users.length}명</span>
       </div>
 
-      {/* 카카오맵 영역 (placeholder) */}
-      <div style={{
-        background: '#e2e8f0',
-        borderRadius: 12,
-        height: 300,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 24,
-        border: '1px solid #cbd5e1',
-      }}>
-        <span style={{ color: '#64748b' }}>🗺️ 카카오맵 지도 뷰 (KAKAO_MAP_API_KEY 설정 후 활성화)</span>
-      </div>
+      <KakaoMapView markers={mapMarkers} height={320} />
 
       {/* 농업인 목록 테이블 */}
       <div style={{ background: 'white', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
