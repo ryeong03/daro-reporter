@@ -16,10 +16,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors({
-  origin: [
-    'http://localhost:3001',
-    'https://daro-reporter.vercel.app'
-  ]
+  origin: (origin, callback) => {
+    const allowed = [
+      'http://localhost:3001',
+      'http://localhost:3002',
+    ];
+    if (!origin || allowed.includes(origin) || /\.vercel\.app$/.test(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
