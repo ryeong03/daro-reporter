@@ -33,3 +33,10 @@ export function applyShortenedWindow(userId: string): void {
     updateUserState(userId, { ...state, shortenedWindow: true });
   }
 }
+
+/**
+ * AI콜 결과에 의해 alert 상태에서 normal로 복귀
+ */
+export function resolveAlert(userId: string): void {
+  states.delete(userId);
+}
