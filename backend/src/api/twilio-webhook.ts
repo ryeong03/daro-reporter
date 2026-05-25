@@ -35,10 +35,22 @@ export function registerCallContext(
 // ─── TwiML 응답 (발신 시 재생할 음성 + 녹음 지시) ───
 
 twilioRouter.post('/voice-response', async (req: Request, res: Response) => {
+  const userId = req.query.userId as string;
+
+  let userName = '어르신';
+  if (userId) {
+    const { data: user } = await supabase
+      .from('users')
+      .select('name')
+      .eq('id', userId)
+      .single();
+    if (user?.name) userName = user.name;
+  }
+
   res.type('text/xml');
   res.send(`
     <Response>
-      <Say language="ko-KR">안녕하세요, 히어로 안전 모니터링입니다. 지금 괜찮으신가요? 상태를 말씀해 주세요.</Say>
+      <Say language="ko-KR">${userName}님, 안녕하세요. 농업인 안전 확인 전화입니다. 워치에서 위험 신호가 감지됐어요. 지금 괜찮으시면 괜찮아요, 아프시거나 도움이 필요하시면 아파요 또는 도와줘 라고 말씀해 주세요.</Say>
       <Record maxLength="15" playBeep="false" action="/twilio/recording" recordingStatusCallback="/twilio/recording-status" />
       <Say language="ko-KR">응답이 없어 다시 여쭤봅니다. 지금 괜찮으신가요?</Say>
       <Record maxLength="15" playBeep="false" action="/twilio/recording" recordingStatusCallback="/twilio/recording-status" />
@@ -186,7 +198,7 @@ async function handleClassification(
       res.type('text/xml');
       res.send(`
         <Response>
-          <Say language="ko-KR">확인되었습니다. 안전하신 것으로 판단됩니다. 불편하시면 언제든 119에 연락해주세요.</Say>
+          <Say language="ko-KR">다행이에요. 심박이 높아서 걱정했어요. 오늘도 건강하고 안전하게 일하세요!</Say>
           <Hangup/>
         </Response>
       `);
@@ -202,7 +214,7 @@ async function handleClassification(
       res.type('text/xml');
       res.send(`
         <Response>
-          <Say language="ko-KR">지금 보건소와 보호자에게 알림을 보내고 있습니다. 잠시만 기다려 주세요.</Say>
+          <Say language="ko-KR">알겠습니다. 지금 바로 도움을 요청하겠습니다. 잠시만 기다려 주세요.</Say>
           <Hangup/>
         </Response>
       `);
@@ -215,9 +227,9 @@ async function handleClassification(
         res.type('text/xml');
         res.send(`
           <Response>
-            <Say language="ko-KR">잘 알아듣지 못했습니다. 다시 한번 말씀해 주세요. 지금 괜찮으신가요?</Say>
+            <Say language="ko-KR">죄송해요, 잘 못 들었어요. 다시 한 번 여쭤보겠습니다. 지금 괜찮으시면 괜찮아요, 도움이 필요하시면 아파요 또는 도와줘 라고 말씀해 주세요.</Say>
             <Record maxLength="15" playBeep="false" action="/twilio/recording" />
-            <Say language="ko-KR">응답이 확인되지 않아 보건소에 알림을 보내겠습니다.</Say>
+            <Say language="ko-KR">응답이 확인되지 않아 도움을 요청하겠습니다.</Say>
             <Hangup/>
           </Response>
         `);
@@ -231,7 +243,7 @@ async function handleClassification(
         res.type('text/xml');
         res.send(`
           <Response>
-            <Say language="ko-KR">응답이 확인되지 않아 보건소에 알림을 보내겠습니다. 잠시만 기다려 주세요.</Say>
+            <Say language="ko-KR">다시 질문했으나 모두 어르신의 대답을 확인할 수 없습니다. 도움을 요청할게요.</Say>
             <Hangup/>
           </Response>
         `);
