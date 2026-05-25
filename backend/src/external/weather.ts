@@ -21,19 +21,20 @@ export async function checkWeather(lat: number, lng: number): Promise<WeatherDat
     const baseDate = formatDate(now);
     const baseTime = getBaseTime(now);
 
-    const url = 'http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst';
-    const response = await axios.get(url, {
-      params: {
-        serviceKey: apiKey,
-        numOfRows: 10,
-        pageNo: 1,
-        dataType: 'JSON',
-        base_date: baseDate,
-        base_time: baseTime,
-        nx,
-        ny,
-      },
+    const common = new URLSearchParams({
+      numOfRows: '10',
+      pageNo: '1',
+      dataType: 'JSON',
+      base_date: baseDate,
+      base_time: baseTime,
+      nx: String(nx),
+      ny: String(ny),
     });
+    const serviceKeyQuery = apiKey.includes('%')
+      ? `serviceKey=${apiKey}`
+      : new URLSearchParams({ serviceKey: apiKey }).toString();
+    const url = `http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?${serviceKeyQuery}&${common.toString()}`;
+    const response = await axios.get(url);
 
     const items = response.data?.response?.body?.items?.item || [];
     let temperature = 0;
