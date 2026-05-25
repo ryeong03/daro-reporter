@@ -101,11 +101,6 @@ flowchart TB
 | 분기 B-1 (`safe_rest`) | 2분 이내 회복 | 2분 관찰 | 알림 없음 |
 | 분기 B-2 (`syncope`) | 2분 지나도 기준선 바깥 | 2분 관찰 | **AI 전화 + 알림** |
 
-### C. 환경 가중치
-
-| 조건 | 처리 |
-|---|---|
-| 체감온도 33°C 이상 | 분기 관찰 시간 **2분 → 1분 단축** |
 
 > **기준선 정책**: 앱 최초 설치 시 과거 7일 심박 데이터로 개인 기준선 산출. 신규 사용자는 임시 75bpm으로 7일 운영 후 자동 갱신.
 
@@ -181,13 +176,13 @@ flowchart TD
 | 음성 통화 | ![Twilio Voice](https://img.shields.io/badge/Twilio_Voice-F22F46?style=for-the-badge&logo=twilio&logoColor=white) |
 | STT (한국어) | ![Clova Speech](https://img.shields.io/badge/Clova_Speech-03C75A?style=for-the-badge) |
 | 의도 판단 | ![Claude API](https://img.shields.io/badge/Claude_API-D97757?style=for-the-badge) |
-| 알림 | ![Twilio SMS](https://img.shields.io/badge/Twilio_SMS-F22F46?style=for-the-badge&logo=twilio&logoColor=white) ![Slack](https://img.shields.io/badge/Slack_Webhook-4A154B?style=for-the-badge&logo=slack&logoColor=white) |
+| 알림 | ![Twilio SMS](https://img.shields.io/badge/Twilio_SMS-F22F46?style=for-the-badge&logo=twilio&logoColor=white)
+ sms 발신 외 앱에 보호자 role 추가하여 앱으로 알림 및 위치 주는 방법 고민중.
 
 ### 외부 API
 
 | 역할 | 기술 |
 |---|---|
-| 기상 정보 | ![KMA](https://img.shields.io/badge/기상청_초단기실황-005BAC?style=for-the-badge) |
 | 지도 | ![Kakao Map](https://img.shields.io/badge/Kakao_Map-FFCD00?style=for-the-badge) |
 
 ### Infra / Tools
