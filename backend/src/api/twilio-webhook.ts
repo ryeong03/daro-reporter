@@ -39,12 +39,16 @@ twilioRouter.post('/voice-response', async (req: Request, res: Response) => {
 
   let userName = '어르신';
   if (userId) {
-    const { data: user } = await supabase
-      .from('users')
-      .select('name')
-      .eq('id', userId)
-      .single();
-    if (user?.name) userName = user.name;
+    try {
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('name')
+        .eq('id', userId)
+        .single();
+      if (!error && user?.name) userName = user.name;
+    } catch (err) {
+      console.warn(`[twilio] Failed to fetch user name for ${userId}:`, err);
+    }
   }
 
   res.type('text/xml');

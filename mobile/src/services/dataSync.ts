@@ -40,25 +40,32 @@ async function syncOnce() {
   const deviceId = await getDeviceId();
   if (!userId || !deviceId) return;
 
+  const heartRateSamples = await readHeartRate(10);
+  const steps = await readSteps(10);
+
+  if (heartRateSamples.length === 0) {
+    console.log('[DataSync] No heart rate data, skipping');
+    return;
+  }
+
+  let location;
   try {
-    const heartRateSamples = await readHeartRate(10);
-    const steps = await readSteps(10);
-    const location = await getCurrentLocation();
+    location = await getCurrentLocation();
+  } catch {
+    console.warn('[DataSync] GPS unavailable, skipping sync');
+    return;
+  }
 
-    if (heartRateSamples.length === 0) {
-      console.log('[DataSync] No heart rate data, skipping');
-      return;
-    }
+  const payload: HealthDataRequest = {
+    device_id: deviceId,
+    user_id: userId,
+    timestamp: new Date().toISOString(),
+    heart_rate: heartRateSamples.map((s) => ({ t: s.timestamp, bpm: s.bpm })),
+    steps_10min: steps,
+    location,
+  };
 
-    const payload: HealthDataRequest = {
-      device_id: deviceId,
-      user_id: userId,
-      timestamp: new Date().toISOString(),
-      heart_rate: heartRateSamples.map((s) => ({ t: s.timestamp, bpm: s.bpm })),
-      steps_10min: steps,
-      location,
-    };
-
+  try {
     const response = await sendHealthData(payload);
 
     const avgBpm = Math.round(
@@ -82,24 +89,14 @@ async function syncOnce() {
     console.log(`[DataSync] Sent — state: ${response.detection.state}, HR: ${avgBpm}, steps: ${steps}`);
   } catch (err) {
     console.error('[DataSync] Failed, queueing offline:', err);
-    await queueOffline();
+    await queueOffline(payload);
   }
 }
 
-async function queueOffline() {
-  const userId = await getUserId();
-  const deviceId = await getDeviceId();
-  if (!userId || !deviceId) return;
-
-  const item = {
-    timestamp: new Date().toISOString(),
-    user_id: userId,
-    device_id: deviceId,
-  };
-
+async function queueOffline(payload: HealthDataRequest) {
   const existing = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
-  const queue = existing ? JSON.parse(existing) : [];
-  queue.push(item);
+  const queue: HealthDataRequest[] = existing ? JSON.parse(existing) : [];
+  queue.push(payload);
 
   if (queue.length > 100) queue.splice(0, queue.length - 100);
 
@@ -110,11 +107,26 @@ async function flushOfflineQueue() {
   const existing = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
   if (!existing) return;
 
-  const queue = JSON.parse(existing);
+  const queue: HealthDataRequest[] = JSON.parse(existing);
   if (queue.length === 0) return;
 
   console.log(`[DataSync] Flushing ${queue.length} offline items`);
-  await AsyncStorage.removeItem(OFFLINE_QUEUE_KEY);
+  const failed: HealthDataRequest[] = [];
+
+  for (const payload of queue) {
+    try {
+      await sendHealthData(payload);
+    } catch {
+      failed.push(payload);
+    }
+  }
+
+  if (failed.length > 0) {
+    await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(failed));
+    console.log(`[DataSync] ${failed.length} items still pending`);
+  } else {
+    await AsyncStorage.removeItem(OFFLINE_QUEUE_KEY);
+  }
 }
 
 export async function sendFallAlert() {

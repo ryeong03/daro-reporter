@@ -75,9 +75,15 @@ export function useHealthData() {
   useEffect(() => {
     startMonitoring();
     return () => {
-      stopMonitoring();
+      if (heartRateTimer.current) {
+        clearInterval(heartRateTimer.current);
+        heartRateTimer.current = null;
+      }
+      stopDataSync();
+      stopLocationTracking();
+      stopForegroundService();
     };
-  }, [startMonitoring, stopMonitoring]);
+  }, [startMonitoring]);
 
   return state;
 }
