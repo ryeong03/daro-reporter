@@ -325,7 +325,7 @@ KAKAO_MAP_API_KEY=
 
 <br/>
 
-## 📚 참고 문서....
+## 📚 참고 문서
 
 ### 기획·정책
 - [AI 콜 구조 판단 기준 policy (주영)](https://www.notion.so/AI-policy-_-36a6e68639778063b61be3ebe65ce36b)
