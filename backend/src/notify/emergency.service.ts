@@ -5,6 +5,7 @@ import { SmsService } from './sms.service';
 import { SlackService } from './slack.service';
 import { TwilioCallService } from '../ai-call/twilio-call.service';
 import { KakaoMapService } from '../external/kakao-map.service';
+import { GuardianService } from '../guardian/guardian.service';
 
 type EventType = 'heatstroke' | 'syncope' | 'fall';
 
@@ -25,6 +26,8 @@ export class EmergencyService {
     @Inject(forwardRef(() => TwilioCallService))
     private twilioCallService: TwilioCallService,
     private kakaoMapService: KakaoMapService,
+    @Inject(forwardRef(() => GuardianService))
+    private guardianService: GuardianService,
     private config: ConfigService,
   ) {}
 
@@ -72,7 +75,7 @@ export class EmergencyService {
 
     const { data: guardians } = await db
       .from('guardians')
-      .select('phone, name')
+      .select('id, phone, name')
       .eq('user_id', userId);
 
     const healthCenterPhone = this.config.get<string>('HEALTH_CENTER_PHONE')!;
@@ -83,11 +86,14 @@ export class EmergencyService {
       this.twilioCallService.callHealthCenter(user.name, eventType, locationStr),
     ]);
 
-    const guardianMessage = `[Hero 긴급] ${user.name} 어르신에게 ${eventLabel} 상황이 발생했습니다.\n위치: ${locationStr}\n지도: ${mapLink}\n보건소에 자동 알림이 전달되었습니다.`;
+    const baseUrl = this.config.get<string>('DASHBOARD_URL') || 'https://daro-reporter.vercel.app';
 
-    const guardianNotifications = (guardians || []).map((g) =>
-      this.smsService.sendSMS(g.phone, guardianMessage),
-    );
+    const guardianNotifications = (guardians || []).map((g) => {
+      const token = this.guardianService.generateEmergencyToken(g.id, userId, alertId || 0);
+      const emergencyLink = `${baseUrl}/emergency?token=${token}`;
+      const guardianMessage = `[Hero 긴급] ${user.name} 어르신에게 ${eventLabel} 상황이 발생했습니다.\n위치: ${locationStr}\n지도: ${mapLink}\n보건소에 자동 알림이 전달되었습니다.\n\n상세 확인: ${emergencyLink}`;
+      return this.smsService.sendSMS(g.phone, guardianMessage);
+    });
 
     const [coreResults] = await Promise.all([
       coreNotifications,
@@ -111,7 +117,7 @@ export class EmergencyService {
         channel: 'sms',
         recipient: guardian.phone,
         success: true,
-        payload: { message: guardianMessage, type: 'guardian' },
+        payload: { type: 'guardian' },
       });
     }
 
