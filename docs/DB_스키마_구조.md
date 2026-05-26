@@ -17,6 +17,10 @@ users (1) ─┬─ (N) guardians          보호자
 - `alerts` ↔ `call_logs`, `notification_logs` → **`alert_id`** 로 join
 - 모든 FK에 `ON DELETE CASCADE` 적용 → 사용자 삭제 시 하위 데이터 자동 삭제
 
+> **용어 정리**: `guardians` = 보호자(가족), admin = 관리자(보건소 담당자). 별도 admin 테이블은 추후 추가 예정.
+
+> **연결 방식**: 대시보드에서 농업인 등록 후 발급된 `user_id`로 보호자를 연결한다. phone lookup 방식은 미구현이나, 편의성 위해 추후 고려 가능.
+
 ---
 
 ## 테이블별 상세
@@ -109,7 +113,7 @@ triggered → calling → safe / emergency
 | `twilio_call_sid` | TEXT | | Twilio 통화 식별자 |
 | `recording_url` | TEXT | | 녹음 파일 URL |
 | `stt_text` | TEXT | | Clova STT 변환 텍스트 |
-| `classification` | TEXT | `safe` / `emergency` / `unclear` / `no_answer` | Claude 분류 결과 |
+| `classification` | TEXT | `safe` / `emergency` / `unclear` / `no_answer` | Claude 분류 결과 (`no_answer` = AI콜 미수신, 이후 재시도 로직 동작) |
 | `claude_reasoning` | TEXT | | Claude 판단 근거 |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 
