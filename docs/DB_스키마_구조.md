@@ -7,7 +7,7 @@
 ## 테이블 관계도
 
 ```
-users (1) ─┬─ (N) guardians          보호자
+users (1) ─┬─ (N) guardians          보호자 --NOTE: 관리자/보호자 용어 통일 필요해보임. 
             ├─ (N) health_data        심박·걸음수·GPS
             └─ (N) alerts (1) ─┬─ (N) call_logs           AI 콜 기록
                                └─ (N) notification_logs   SMS/콜 발송 기록
@@ -16,6 +16,7 @@ users (1) ─┬─ (N) guardians          보호자
 - `users` ↔ `guardians`, `health_data`, `alerts` → **`user_id`** 로 join
 - `alerts` ↔ `call_logs`, `notification_logs` → **`alert_id`** 로 join
 - 모든 FK에 `ON DELETE CASCADE` 적용 → 사용자 삭제 시 하위 데이터 자동 삭제
+-- QUESTION: 실제로 농업인이랑 보호자가 각각 등록할 때 userid 로 조인하는거면 phone 넘버(유니크값이니까..)로 userid 찾아서 연결하는거? 아님 userid 같은 거 복붙해서 연결하는거? 
 
 ---
 
@@ -110,6 +111,7 @@ triggered → calling → safe / emergency
 | `recording_url` | TEXT | | 녹음 파일 URL |
 | `stt_text` | TEXT | | Clova STT 변환 텍스트 |
 | `classification` | TEXT | `safe` / `emergency` / `unclear` / `no_answer` | Claude 분류 결과 |
+--QUESTION: no_answer 는 뭔가요? ai콜 자체를 안받으면 no_answer 인거죠?
 | `claude_reasoning` | TEXT | | Claude 판단 근거 |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | |
 
