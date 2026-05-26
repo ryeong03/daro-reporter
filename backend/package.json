@@ -1,34 +1,36 @@
 {
   "name": "hero-backend",
-  "version": "0.1.0",
-  "description": "Hero - 농어촌 어르신 응급 모니터링 백엔드",
-  "main": "dist/index.js",
+  "version": "0.2.0",
+  "description": "Hero - 농어촌 어르신 응급 모니터링 백엔드 (NestJS)",
+  "private": true,
   "scripts": {
-    "dev": "nodemon --exec ts-node src/index.ts",
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "lint": "eslint src --ext .ts",
-    "lint:fix": "eslint src --ext .ts --fix",
-    "test:kakao": "ts-node scripts/test-kakao-map.ts",
-    "test:keys": "ts-node ../test/visualize-env.ts"
+    "build": "nest build",
+    "start": "node dist/main",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
   },
   "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/platform-express": "^11.0.0",
     "@supabase/supabase-js": "^2.49.0",
-    "express": "^4.21.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.0",
     "twilio": "^5.4.0",
     "axios": "^1.7.0",
     "@anthropic-ai/sdk": "^0.39.0",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.0"
   },
   "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
     "@types/express": "^5.0.0",
-    "@types/cors": "^2.8.17",
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0",
     "ts-node": "^10.9.0",
-    "nodemon": "^3.1.0",
     "eslint": "^9.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0"

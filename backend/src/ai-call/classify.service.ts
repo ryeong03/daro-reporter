@@ -1,3 +1,5 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 
 export type Classification = 'safe' | 'emergency' | 'unclear';
@@ -48,34 +50,41 @@ AI콜에 대한 노인 발화를 분석하여 safe / emergency / unclear 세 가
 ## 반환값
 출력은 반드시 JSON만 반환: {"classification": "safe|emergency|unclear", "reasoning": "판단 근거"}`;
 
-export async function classifyResponse(sttText: string): Promise<ClassifyResult> {
-  if (!sttText || sttText.trim().length === 0) {
-    return { classification: 'unclear', reasoning: '응답 없음 (빈 텍스트)' };
-  }
+@Injectable()
+export class ClassifyService {
+  private readonly logger = new Logger(ClassifyService.name);
 
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+  constructor(private config: ConfigService) {}
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 200,
-    system: SYSTEM_PROMPT,
-    messages: [
-      { role: 'user', content: `어르신 응답: "${sttText}"` },
-    ],
-  });
-
-  try {
-    const content = message.content[0];
-    if (content.type === 'text') {
-      const result = JSON.parse(content.text);
-      return {
-        classification: result.classification as Classification,
-        reasoning: result.reasoning,
-      };
+  async classifyResponse(sttText: string): Promise<ClassifyResult> {
+    if (!sttText || sttText.trim().length === 0) {
+      return { classification: 'unclear', reasoning: '응답 없음 (빈 텍스트)' };
     }
-  } catch {
-    console.error('[classify] Failed to parse Claude response');
-  }
 
-  return { classification: 'unclear', reasoning: 'Claude 응답 파싱 실패' };
+    const client = new Anthropic({ apiKey: this.config.get<string>('ANTHROPIC_API_KEY')! });
+
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 200,
+      system: SYSTEM_PROMPT,
+      messages: [
+        { role: 'user', content: `어르신 응답: "${sttText}"` },
+      ],
+    });
+
+    try {
+      const content = message.content[0];
+      if (content.type === 'text') {
+        const result = JSON.parse(content.text);
+        return {
+          classification: result.classification as Classification,
+          reasoning: result.reasoning,
+        };
+      }
+    } catch {
+      this.logger.error('Failed to parse Claude response');
+    }
+
+    return { classification: 'unclear', reasoning: 'Claude 응답 파싱 실패' };
+  }
 }
