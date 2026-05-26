@@ -376,7 +376,7 @@ KAKAO_MAP_API_KEY=
 | <img src="https://github.com/ryeong03.png" width="120" /> | <img src="https://github.com/celinalab.png" width="120" /> | <img src="https://github.com/Weeny326.png" width="120" /> | <img src="https://github.com/cheryn5555-prog.png" width="120" /> | <img src="https://github.com/jzikim.png" width="120" /> |
 |:--:|:--:|:--:|:--:|:--:|
 | **박세령** | **임현진** | **이주영** | **박채린** | **Joonghyuk Kim** |
-| AI 콜 + 백엔드 | 헬스 데이터<br/>(Android + Health Connect) | UI/UX 디자인 | QA + 고도화 (Phase 2~3) | 외부 API 연동<br/>(카카오맵 + 기상청) |
+| AI 콜 + 백엔드 | 헬스 데이터<br/>(Android + Health Connect) | UI/UX 디자인 | 헬스 데이터<br/>(Android + Health Connect) QA + 고도화 (Phase 2~3) | 외부 API 연동<br/>(카카오맵 + 기상청) |
 | [@ryeong03](https://github.com/ryeong03) | [@celinalab](https://github.com/celinalab) | [@Weeny326](https://github.com/Weeny326) | [@cheryn5555-prog](https://github.com/cheryn5555-prog) | [@jzikim](https://github.com/jzikim) |
 
 <br/>
