@@ -10,6 +10,7 @@ import { NotifyModule } from './notify/notify.module';
 import { ExternalModule } from './external/external.module';
 import { StateModule } from './state/state.module';
 import { DetectionModule } from './detection/detection.module';
+import { GuardianModule } from './guardian/guardian.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -21,6 +22,7 @@ import { AppController } from './app.controller';
     DetectionModule,
     AiCallModule,
     NotifyModule,
+    GuardianModule,
     HealthModule,
     AlertModule,
     UsersModule,

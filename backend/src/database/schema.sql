@@ -69,6 +69,9 @@ CREATE TABLE IF NOT EXISTS call_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE INDEX idx_call_logs_alert ON call_logs(alert_id);
+CREATE INDEX idx_call_logs_created ON call_logs(created_at DESC);
+
 -- 알림 발송 로그
 CREATE TABLE IF NOT EXISTS notification_logs (
   id BIGSERIAL PRIMARY KEY,
@@ -79,3 +82,6 @@ CREATE TABLE IF NOT EXISTS notification_logs (
   success BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX idx_notification_logs_alert ON notification_logs(alert_id);
+CREATE INDEX idx_notification_logs_channel ON notification_logs(channel, created_at DESC);
