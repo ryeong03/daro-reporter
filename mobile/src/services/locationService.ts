@@ -10,19 +10,31 @@ let onLocationUpdate: ((location: LocationData) => void) | null = null;
 const NORMAL_INTERVAL_MS = 5 * 60 * 1000;
 const ALERT_INTERVAL_MS = 30 * 1000;
 
-export async function requestLocationPermission(): Promise<boolean> {
+export interface LocationPermissionOptions {
+  /** 백그라운드 위치 권한까지 요청 (모니터링 시작 시 true 권장) */
+  requireBackground?: boolean;
+}
+
+export async function requestLocationPermission(
+  options: LocationPermissionOptions = { requireBackground: true }
+): Promise<boolean> {
   if (Platform.OS !== 'android') return false;
 
   const fineGranted = await PermissionsAndroid.request(
     PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
     {
       title: 'Hero 위치 권한',
-      message: '어르신의 안전을 위해 위치 정보가 필요합니다.',
+      message: '어르신의 현재 위치를 확인하기 위해 위치 정보가 필요합니다.',
       buttonPositive: '허용',
+      buttonNegative: '거부',
     }
   );
 
   if (fineGranted !== PermissionsAndroid.RESULTS.GRANTED) return false;
+
+  if (!options.requireBackground) {
+    return true;
+  }
 
   const bgGranted = await PermissionsAndroid.request(
     PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
@@ -30,10 +42,16 @@ export async function requestLocationPermission(): Promise<boolean> {
       title: 'Hero 백그라운드 위치 권한',
       message: '앱이 꺼져 있을 때도 위치를 수집하려면 "항상 허용"을 선택해주세요.',
       buttonPositive: '허용',
+      buttonNegative: '나중에',
     }
   );
 
   return bgGranted === PermissionsAndroid.RESULTS.GRANTED;
+}
+
+export async function hasFineLocationPermission(): Promise<boolean> {
+  if (Platform.OS !== 'android') return false;
+  return PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION);
 }
 
 function getCurrentLocation(): Promise<LocationData> {
