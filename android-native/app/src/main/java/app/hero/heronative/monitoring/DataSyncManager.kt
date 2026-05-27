@@ -11,6 +11,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 class DataSyncManager(
     context: Context,
@@ -24,8 +25,17 @@ class DataSyncManager(
         DateTimeFormatter.ofPattern("HH:mm:ss", Locale.KOREA).withZone(ZoneId.systemDefault())
 
     suspend fun syncOnce(session: UserSession): Boolean {
-        val heartRecords = runCatching { healthManager.readHeartRates(10) }.getOrElse { emptyList() }
-        val stepRecords = runCatching { healthManager.readSteps(10) }.getOrElse { emptyList() }
+        val healthConnectReady = healthManager.hasAllPermissions()
+        val heartRecords = if (healthConnectReady) {
+            runCatching { healthManager.readHeartRates(10) }.getOrElse { emptyList() }
+        } else {
+            emptyList()
+        }
+        val stepRecords = if (healthConnectReady) {
+            runCatching { healthManager.readSteps(10) }.getOrElse { emptyList() }
+        } else {
+            emptyList()
+        }
 
         val points = heartRecords.flatMap { rec ->
             rec.samples.map { s ->
@@ -41,13 +51,16 @@ class DataSyncManager(
 
         MonitoringStateHolder.update {
             it.copy(
-                watchConnected = points.isNotEmpty(),
-                heartRate = latestBpm,
-                steps = steps
+                // RN과 동일: 권한 기준으로 연결 상태 유지 (데이터 공백 시 끊김 방지)
+                watchConnected = healthConnectReady,
+                heartRate = if (latestBpm > 0) latestBpm else it.heartRate,
+                steps = if (steps > 0) steps else it.steps,
             )
         }
 
-        if (points.isEmpty()) return false
+        refreshGpsStatus()
+
+        if (!healthConnectReady || points.isEmpty()) return false
 
         val location = locationProvider.getCurrentLocation()
         if (location == null) return false
@@ -120,12 +133,37 @@ class DataSyncManager(
     }
 
     suspend fun pollHeartRate() {
-        val records = runCatching { healthManager.readHeartRates(10) }.getOrElse { emptyList() }
-        val bpm = records.lastOrNull()?.samples?.lastOrNull()?.beatsPerMinute
-        if (bpm != null) {
-            MonitoringStateHolder.update {
-                it.copy(heartRate = bpm.toInt(), watchConnected = true)
-            }
+        if (!healthManager.hasAllPermissions()) {
+            MonitoringStateHolder.update { it.copy(watchConnected = false) }
+            return
+        }
+        MonitoringStateHolder.update { it.copy(watchConnected = true) }
+        // RN getLatestHeartRate와 동일하게 최근 2분 구간만 조회
+        val records = runCatching { healthManager.readHeartRates(2) }.getOrElse { emptyList() }
+        val bpm = records.lastOrNull()?.samples?.lastOrNull()?.beatsPerMinute ?: return
+        MonitoringStateHolder.update {
+            it.copy(heartRate = bpm.toInt(), watchConnected = true)
+        }
+    }
+
+    /** Health Connect 권한 상태만 UI에 반영한다 */
+    suspend fun refreshHealthConnectStatus() {
+        val ready = healthManager.hasAllPermissions()
+        MonitoringStateHolder.update { it.copy(watchConnected = ready) }
+    }
+
+    /** 위치 권한·좌표를 조회해 GPS UI 상태를 갱신한다 (헬스 동기화와 분리) */
+    suspend fun refreshGpsStatus() {
+        if (!locationProvider.hasFineLocation()) {
+            MonitoringStateHolder.update { it.copy(gpsActive = false) }
+            return
+        }
+        val location = runCatching { locationProvider.getCurrentLocation() }.getOrNull()
+        MonitoringStateHolder.update {
+            it.copy(
+                gpsActive = location != null || LocationTrackerHolder.isRunning(),
+                location = location ?: it.location,
+            )
         }
     }
 }
@@ -133,13 +171,35 @@ class DataSyncManager(
 /** LocationTracker를 서비스/홈에서 공유 */
 object LocationTrackerHolder {
     private var tracker: LocationTracker? = null
+    private var trackingScope: kotlinx.coroutines.CoroutineScope? = null
+
+    fun isRunning(): Boolean = tracker != null
 
     fun start(scope: kotlinx.coroutines.CoroutineScope, provider: LocationProvider) {
         if (tracker != null) return
+        trackingScope = scope
         tracker = LocationTracker(scope, provider) { loc ->
             MonitoringStateHolder.update { it.copy(location = loc, gpsActive = true) }
         }
         tracker?.start(LocationTracker.Mode.NORMAL)
+        scope.launch {
+            runCatching { provider.getCurrentLocation() }.getOrNull()?.let { loc ->
+                MonitoringStateHolder.update { it.copy(location = loc, gpsActive = true) }
+            }
+        }
+    }
+
+    /** FGS 없이도 홈 화면에서 GPS 추적을 시작한다 */
+    fun ensureStarted(context: Context) {
+        if (!LocationProvider(context).hasFineLocation()) {
+            MonitoringStateHolder.update { it.copy(gpsActive = false) }
+            return
+        }
+        if (tracker != null) return
+        val scope = trackingScope ?: kotlinx.coroutines.CoroutineScope(
+            kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
+        ).also { trackingScope = it }
+        start(scope, LocationProvider(context.applicationContext))
     }
 
     fun switchAlertMode() = tracker?.switchMode(LocationTracker.Mode.ALERT)

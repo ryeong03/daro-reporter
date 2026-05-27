@@ -1,6 +1,7 @@
 package app.hero.heronative.health
 
 import android.content.Context
+import android.content.Intent
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.HeartRateRecord
@@ -10,12 +11,23 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import java.time.Instant
 
 class HealthConnectManager(context: Context) {
-    private val client: HealthConnectClient = HealthConnectClient.getOrCreate(context)
+    private val appContext = context.applicationContext
+    private val client: HealthConnectClient = HealthConnectClient.getOrCreate(appContext)
 
     val permissions: Set<String> = setOf(
         HealthPermission.getReadPermission(HeartRateRecord::class),
         HealthPermission.getReadPermission(StepsRecord::class),
     )
+
+    /** 심박·걸음 읽기 권한이 모두 허용됐는지 확인한다 */
+    suspend fun hasAllPermissions(): Boolean {
+        val granted = client.permissionController.getGrantedPermissions()
+        return permissions.all { it in granted }
+    }
+
+    /** Health Connect 앱 설정 화면으로 이동하는 Intent */
+    fun createManageDataIntent(): Intent =
+        HealthConnectClient.getHealthConnectManageDataIntent(appContext)
 
     suspend fun readHeartRates(sinceMinutes: Long): List<HeartRateRecord> {
         val now = Instant.now()

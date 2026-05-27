@@ -67,11 +67,17 @@ fun OnboardingScreen(
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val healthManager = remember { HealthConnectManager(ctx.applicationContext) }
 
+    var pendingOnboardingComplete by remember { mutableStateOf(false) }
+
     val hcPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract()
     ) { granted ->
         if (!granted.containsAll(healthManager.permissions)) {
             scope.launch { snack.showSnackbar("Health Connect 권한을 허용해주세요") }
+        }
+        if (pendingOnboardingComplete) {
+            pendingOnboardingComplete = false
+            onComplete()
         }
     }
 
@@ -138,8 +144,8 @@ fun OnboardingScreen(
                             onSuccess = {
                                 loading = false
                                 MonitoringScheduler.schedule(ctx.applicationContext)
+                                pendingOnboardingComplete = true
                                 hcPermissionLauncher.launch(healthManager.permissions)
-                                onComplete()
                             },
                             onError = { msg ->
                                 loading = false

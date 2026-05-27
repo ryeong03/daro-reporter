@@ -1,7 +1,6 @@
 package app.hero.heronative.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.hero.heronative.data.Guardian
 import app.hero.heronative.data.UserRepository
@@ -11,11 +10,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class UserViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = UserRepository(application)
+/**
+ * 사용자 세션·등록·로그아웃 상태를 관리한다.
+ * Android 프레임워크 타입에 의존하지 않으며, 저장소만 주입받는다.
+ */
+class UserViewModel(
+    private val repository: UserRepository,
+) : ViewModel() {
 
-    val session: StateFlow<UserSession?> = repository.observeSession()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val session: StateFlow<UserSession?> = observeSessionAsState()
 
     fun register(
         name: String,
@@ -24,19 +27,77 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         birthDate: String?,
         guardians: List<Guardian>,
         onSuccess: () -> Unit,
-        onError: (String) -> Unit
+        onError: (String) -> Unit,
+    ) {
+        register(
+            params = UserRegistrationParams(
+                name = name,
+                phone = phone,
+                gender = gender,
+                birthDate = birthDate,
+                guardians = guardians,
+            ),
+            onSuccess = onSuccess,
+            onError = onError,
+        )
+    }
+
+    fun register(
+        params: UserRegistrationParams,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit,
     ) {
         viewModelScope.launch {
-            repository.register(name, phone, gender, birthDate, guardians)
-                .onSuccess { onSuccess() }
-                .onFailure { onError(it.message ?: "등록에 실패했습니다") }
+            executeRegister(params, onSuccess, onError)
         }
     }
 
     fun logout(onDone: () -> Unit) {
         viewModelScope.launch {
-            repository.clearSession()
-            onDone()
+            executeLogout(onDone)
         }
+    }
+
+    private fun observeSessionAsState(): StateFlow<UserSession?> =
+        repository
+            .observeSession()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(SESSION_SUBSCRIBE_TIMEOUT_MS),
+                initialValue = null,
+            )
+
+    private suspend fun executeRegister(
+        params: UserRegistrationParams,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit,
+    ) {
+        val result = repository.register(
+            name = params.name,
+            phone = params.phone,
+            gender = params.gender,
+            birthDate = params.birthDate,
+            guardians = params.guardians,
+        )
+        notifyRegisterResult(result, onSuccess, onError)
+    }
+
+    private fun notifyRegisterResult(
+        result: Result<UserSession>,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit,
+    ) {
+        result
+            .onSuccess { onSuccess() }
+            .onFailure { onError(UserViewModelMessages.registerError(it)) }
+    }
+
+    private suspend fun executeLogout(onDone: () -> Unit) {
+        repository.clearSession()
+        onDone()
+    }
+
+    private companion object {
+        const val SESSION_SUBSCRIBE_TIMEOUT_MS = 5_000L
     }
 }

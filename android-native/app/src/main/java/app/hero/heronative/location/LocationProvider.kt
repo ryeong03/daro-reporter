@@ -12,6 +12,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
 class LocationProvider(context: Context) {
@@ -32,6 +33,12 @@ class LocationProvider(context: Context) {
         val cached = lastLocation
         if (cached != null) return cached
 
+        return withTimeoutOrNull(LOCATION_TIMEOUT_MS) {
+            fetchCurrentLocation()
+        }
+    }
+
+    private suspend fun fetchCurrentLocation(): LocationData? {
         val last = suspendCancellableCoroutine { cont ->
             fused.lastLocation
                 .addOnSuccessListener { loc ->
@@ -78,5 +85,9 @@ class LocationProvider(context: Context) {
             fused.requestLocationUpdates(request, callback, Looper.getMainLooper())
             cont.invokeOnCancellation { fused.removeLocationUpdates(callback) }
         }
+    }
+
+    private companion object {
+        const val LOCATION_TIMEOUT_MS = 20_000L
     }
 }

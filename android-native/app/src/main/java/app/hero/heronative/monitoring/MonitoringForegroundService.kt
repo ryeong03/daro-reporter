@@ -1,5 +1,6 @@
 package app.hero.heronative.monitoring
 
+import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,7 +8,10 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import app.hero.heronative.MainActivity
 import app.hero.heronative.data.UserStore
@@ -30,12 +34,22 @@ class MonitoringForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!MonitoringServiceRequirements.canStartForeground(this)) {
+            Log.w(TAG, "FGS 시작 조건 미충족 — ACTIVITY_RECOGNITION·위치 권한 확인 필요")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         val body = intent?.getStringExtra(EXTRA_BODY)
             ?: MonitoringStateHolder.state.value.notificationBody
-        startForeground(NOTIFICATION_ID, buildNotification(body))
+        if (!promoteToForeground(body)) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
 
         scope.launch {
             val session = UserStore(applicationContext).getSessionOnce() ?: return@launch
+            dataSync.refreshHealthConnectStatus()
             LocationTrackerHolder.start(scope, app.hero.heronative.location.LocationProvider(applicationContext))
             dataSync.syncOnce(session)
             while (isActive) {
@@ -53,6 +67,26 @@ class MonitoringForegroundService : Service() {
         }
 
         return START_STICKY
+    }
+
+    private fun promoteToForeground(body: String): Boolean {
+        val notification = buildNotification(body)
+        val types = ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH or
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, types)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            true
+        } catch (e: SecurityException) {
+            Log.e(TAG, "FGS 권한 부족으로 시작 실패", e)
+            false
+        } catch (e: ForegroundServiceStartNotAllowedException) {
+            Log.w(TAG, "백그라운드에서 FGS 시작 불가 — 앱 화면에서 다시 시도", e)
+            false
+        }
     }
 
     override fun onDestroy() {
@@ -95,7 +129,13 @@ class MonitoringForegroundService : Service() {
         private const val EXTRA_BODY = "body"
         private const val SYNC_INTERVAL_MS = 10 * 60 * 1000L
 
+        private const val TAG = "MonitoringFgService"
+
         fun start(context: Context) {
+            if (!MonitoringServiceRequirements.canStartForeground(context)) {
+                Log.w(TAG, "모니터링 서비스 시작 생략 — 필요 권한 미허용")
+                return
+            }
             val intent = Intent(context, MonitoringForegroundService::class.java)
             context.startForegroundService(intent)
         }
