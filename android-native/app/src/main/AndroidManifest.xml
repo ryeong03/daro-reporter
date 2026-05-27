@@ -18,10 +18,12 @@
 
     <!-- Activity recognition (steps) -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:name=".HeroApplication"
         android:allowBackup="true"
-        android:label="Hero Native"
+        android:label="Hero"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
@@ -52,6 +54,11 @@
                 <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
             </intent-filter>
         </activity-alias>
+
+        <service
+            android:name=".monitoring.MonitoringForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="health|location" />
 
     </application>
 
