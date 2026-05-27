@@ -19,6 +19,52 @@ npm install
 npm run android
 ```
 
+## 권한 연동 (Health Connect + GPS)
+
+앱 최초 실행 시 `PermissionsScreen`에서 아래 세 가지 권한을 요청합니다.
+
+| 권한 | 용도 | 연동 |
+|---|---|---|
+| 심박수 (Heart Rate) | Galaxy Fit3 심박 데이터 | Health Connect |
+| 걸음수 (Steps) | Galaxy Fit3 걸음 데이터 | Health Connect |
+| 위치 (GPS) | 어르신 현재 위치 | react-native-geolocation-service |
+
+### Android 네이티브 설정
+
+- `android/app/src/main/AndroidManifest.xml` — Health Connect·GPS·Foreground Service 권한
+- `MainActivity.kt` — `HealthConnectPermissionDelegate` 등록
+- `PermissionsRationaleActivity.kt` — Health Connect 개인정보 안내
+
+### Fit3 데이터 흐름
+
+1. Galaxy Wearable에서 Fit3 연결
+2. 삼성 헬스 → Health Connect 데이터 공유 ON
+3. Hero 앱에서 Health Connect 심박·걸음 읽기 허용
+
+### 백그라운드 수집 (Notifee Foreground Service)
+
+권한 허용 후 상태바에 **「안전 모니터링 동작 중」** 알림이 고정 표시되며, 앱이 백그라운드여도 데이터를 수집합니다.
+
+| 주기 | 수집 항목 |
+|---|---|
+| 10초 | Health Connect 심박·걸음 |
+| 5분 | GPS + **POST /health** 서버 전송 |
+
+### POST /health 스키마
+
+```typescript
+interface HealthPostRequest {
+  userId: string;
+  heartRate: number;
+  steps: number;
+  latitude: number;
+  longitude: number;
+  timestamp: string; // ISO 8601
+}
+```
+
+핵심 파일: `src/api/client.ts` (`postHealth`), `src/services/dataSync.ts`, `foregroundTask.ts`
+
 ## 프로젝트 구조
 
 ```
@@ -46,7 +92,7 @@ src/
 | 엔드포인트 | 용도 |
 |---|---|
 | `POST /users/register` | 농업인 등록 (최초 1회) |
-| `POST /health` | 심박+걸음수+GPS 전송 (10분 주기) |
+| `POST /health` | 심박+걸음수+GPS 전송 (5분 주기) |
 | `POST /alert` | 낙상/이벤트 전송 (즉시) |
 
 서버: `https://daro-reporter-production.up.railway.app`
