@@ -12,6 +12,19 @@ export class UsersService {
     private baselineService: BaselineService,
   ) {}
 
+  async findByPhone(phone: string) {
+    const db = this.supabaseService.db;
+
+    const { data: user, error } = await db
+      .from('users')
+      .select('*')
+      .eq('phone', phone)
+      .single();
+
+    if (error || !user) throw new NotFoundException('User not found');
+    return { user };
+  }
+
   async register(payload: RegisterPayload) {
     const db = this.supabaseService.db;
     const { name, phone, device_id, gender, birth_date, guardians, heart_rate_history } = payload;

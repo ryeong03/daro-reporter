@@ -15,6 +15,11 @@ export class UsersController {
     return this.usersService.register(parsed.data);
   }
 
+  @Get('by-phone/:phone')
+  async getUserByPhone(@Param('phone') phone: string) {
+    return this.usersService.findByPhone(phone);
+  }
+
   @Get(':id')
   async getUser(@Param('id') id: string) {
     return this.usersService.getUserDetail(id);
