@@ -282,12 +282,14 @@ daro-reporter/
 ├── openapi.yaml             # REST API 계약 (앱 · 웹 · 서버)
 ├── docs/
 │   ├── TEAM.md              # 팀 분담 · 폴더 · PR 규칙 ★
+│   ├── DATA_PIPELINE.md     # 폰 → 서버 → DB 데이터 흐름 ★
 │   ├── API.md               # OpenAPI 사용법
 │   └── …
 └── README.md
 ```
 
-**팀 작업 분담**(프론트 vs 연동): [`docs/TEAM.md`](docs/TEAM.md)
+**팀 작업 분담**(프론트 vs 연동): [`docs/TEAM.md`](docs/TEAM.md)  
+**데이터 파이프라인**(폰 → Railway → Supabase): [`docs/DATA_PIPELINE.md`](docs/DATA_PIPELINE.md)
 
 <br/>
 
@@ -362,6 +364,11 @@ KAKAO_MAP_API_KEY=
 <br/>
 
 ## 📚 참고 문서
+
+### 기술·아키텍처
+- [**데이터 파이프라인**](docs/DATA_PIPELINE.md) — Android 수집 → API → Supabase → 대시보드
+- [API 계약 (OpenAPI)](docs/API.md) · [`openapi.yaml`](openapi.yaml)
+- [DB 스키마](docs/DB_스키마_구조.md)
 
 ### 기획·정책
 - [AI 콜 구조 판단 기준 policy (주영)](https://www.notion.so/AI-policy-_-36a6e68639778063b61be3ebe65ce36b)

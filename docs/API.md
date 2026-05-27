@@ -2,7 +2,8 @@
 
 서버·앱·대시보드가 따르는 REST API 스펙은 루트 [`openapi.yaml`](../openapi.yaml) 한 파일이 **기준(Single source of truth)** 입니다.
 
-팀 역할·폴더 구분: [`TEAM.md`](./TEAM.md)
+팀 역할·폴더 구분: [`TEAM.md`](./TEAM.md)  
+데이터 흐름(폰 → 서버 → DB): [`DATA_PIPELINE.md`](./DATA_PIPELINE.md)
 
 ## 서버 URL
 
