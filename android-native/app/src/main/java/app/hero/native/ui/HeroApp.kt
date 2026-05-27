@@ -2,8 +2,10 @@ package app.hero.native.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -13,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import app.hero.native.BuildConfig
+import androidx.compose.ui.platform.LocalContext
+import app.hero.native.monitoring.MonitoringScheduler
 
 @Composable
 fun HeroApp() {
@@ -32,6 +36,15 @@ fun HeroApp() {
             val api = remember { "https://daro-reporter-production.up.railway.app" }
             Text(text = "API: $api", style = MaterialTheme.typography.bodyMedium)
             Text(text = "Build: ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyMedium)
+
+            val ctx = LocalContext.current
+            Button(
+                modifier = Modifier.padding(top = 24.dp),
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+                onClick = { MonitoringScheduler.schedule(ctx.applicationContext) }
+            ) {
+                Text("주기 전송 스케줄(15분)")
+            }
         }
     }
 }
