@@ -275,39 +275,19 @@ flowchart TD
 
 ```text
 daro-reporter/
-├── backend/                 # Node.js + Express + TypeScript
-│   ├── src/
-│   │   ├── api/             # /health, /alert, /users 엔드포인트
-│   │   ├── detection/       # 2단계 감지 로직 + 기준선 계산
-│   │   ├── state/           # 사용자 상태머신 (normal → alert)
-│   │   ├── ai-call/         # Twilio 발신 + Clova STT + Claude 분류
-│   │   ├── notify/          # SMS + 보건소 콜
-│   │   ├── external/        # 기상청 API + 카카오맵 API
-│   │   └── db/              # Supabase 클라이언트 + schema.sql
-│   └── scripts/             # test-call.ts 등 유틸
-│
-├── mobile/                  # React Native + TypeScript (Android + Web)
-│   ├── src/
-│   │   ├── screens/         # 온보딩, 홈, 설정
-│   │   ├── services/        # Health Connect, GPS, Background, DataSync
-│   │   ├── hooks/           # useHealthData, useUser
-│   │   ├── api/             # 서버 통신 클라이언트
-│   │   └── mocks/           # 웹 버전용 mock
-│   └── App.web.tsx          # 웹 버전 엔트리
-│
-├── dashboard/               # PC 관리자 대시보드 (React + TypeScript)
-│   └── src/
-│       ├── pages/           # 농업인 목록, 알림 이력, 개인 상세, 등록
-│       └── components/      # 레이아웃, 카카오맵 뷰
-│
-├── docs/                    # 프로젝트 문서
-│   ├── 현황_0526.md         # 현재 진행 상황 (최신)
-│   ├── 진행_보고서.md
-│   ├── Android_빌드_가이드.md
-│   └── legacy/             # 이전 문서 아카이브
-│
+├── backend/                 # NestJS + TypeScript (API · DB · 감지 · Twilio)
+├── android-native/          # 농업인 Android 앱 (Kotlin + Compose) ← 프론트(앱 UI)
+├── dashboard/               # 보건소 PC 대시보드 (React) ← 프론트(웹 UI)
+├── mobile/                  # 구 React Native (참고용)
+├── openapi.yaml             # REST API 계약 (앱 · 웹 · 서버)
+├── docs/
+│   ├── TEAM.md              # 팀 분담 · 폴더 · PR 규칙 ★
+│   ├── API.md               # OpenAPI 사용법
+│   └── …
 └── README.md
 ```
+
+**팀 작업 분담**(프론트 vs 연동): [`docs/TEAM.md`](docs/TEAM.md)
 
 <br/>
 
