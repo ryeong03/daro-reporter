@@ -1,8 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { initHealthConnect, getLatestHeartRate, readSteps } from '../services/healthConnect';
-import { startDataSync, stopDataSync, setStateChangeListener } from '../services/dataSync';
-import { startLocationTracking, stopLocationTracking } from '../services/locationService';
-import { startForegroundService, stopForegroundService } from '../services/backgroundService';
+import { useState, useEffect, useCallback } from 'react';
+import { subscribeHealthSnapshots } from '../services/healthMonitorEvents';
+import { setStateChangeListener } from '../services/dataSync';
 import type { DetectionState, LocationData } from '../api/types';
 
 interface HealthState {
@@ -15,6 +13,10 @@ interface HealthState {
   location: LocationData | null;
 }
 
+/**
+ * Foreground Service에서 emit되는 스냅샷 + 서버 응답을 UI 상태로 반영합니다.
+ * 수집/동기화 루프는 foregroundTask.ts에서 실행됩니다.
+ */
 export function useHealthData() {
   const [state, setState] = useState<HealthState>({
     heartRate: 0,
@@ -26,25 +28,8 @@ export function useHealthData() {
     location: null,
   });
 
-  const heartRateTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const pollHeartRate = useCallback(async () => {
-    const bpm = await getLatestHeartRate();
-    if (bpm !== null) {
-      setState((prev) => ({ ...prev, heartRate: bpm, watchConnected: true }));
-    }
-  }, []);
-
-  const startMonitoring = useCallback(async () => {
-    const hcReady = await initHealthConnect();
-    setState((prev) => ({ ...prev, watchConnected: hcReady }));
-
-    if (hcReady) {
-      await pollHeartRate();
-      heartRateTimer.current = setInterval(pollHeartRate, 10_000);
-    }
-
-    setStateChangeListener((detState, hr, steps) => {
+  const applyServerState = useCallback(
+    (detState: string, hr: number, steps: number) => {
       setState((prev) => ({
         ...prev,
         detectionState: detState as DetectionState,
@@ -52,38 +37,28 @@ export function useHealthData() {
         steps,
         lastSync: new Date().toLocaleTimeString('ko-KR'),
       }));
-    });
-
-    startLocationTracking((loc) => {
-      setState((prev) => ({ ...prev, location: loc, gpsActive: true }));
-    });
-
-    await startForegroundService();
-    await startDataSync();
-  }, [pollHeartRate]);
-
-  const stopMonitoring = useCallback(async () => {
-    if (heartRateTimer.current) {
-      clearInterval(heartRateTimer.current);
-      heartRateTimer.current = null;
-    }
-    stopDataSync();
-    stopLocationTracking();
-    await stopForegroundService();
-  }, []);
+    },
+    []
+  );
 
   useEffect(() => {
-    startMonitoring();
+    setStateChangeListener(applyServerState);
+
+    const unsubscribe = subscribeHealthSnapshots((snapshot) => {
+      setState((prev) => ({
+        ...prev,
+        heartRate: snapshot.heartRate ?? prev.heartRate,
+        steps: snapshot.steps,
+        watchConnected: snapshot.heartRate != null || snapshot.heartRateSamples.length > 0,
+        gpsActive: snapshot.location != null,
+        location: snapshot.location ?? prev.location,
+      }));
+    });
+
     return () => {
-      if (heartRateTimer.current) {
-        clearInterval(heartRateTimer.current);
-        heartRateTimer.current = null;
-      }
-      stopDataSync();
-      stopLocationTracking();
-      stopForegroundService();
+      unsubscribe();
     };
-  }, [startMonitoring]);
+  }, [applyServerState]);
 
   return state;
 }
