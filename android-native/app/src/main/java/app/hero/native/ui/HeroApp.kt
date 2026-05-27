@@ -1,4 +1,4 @@
-package app.hero.native.ui
+package app.hero.heronative.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,9 +14,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import app.hero.native.BuildConfig
+import app.hero.heronative.BuildConfig
 import androidx.compose.ui.platform.LocalContext
-import app.hero.native.monitoring.MonitoringScheduler
+import app.hero.heronative.monitoring.MonitoringScheduler
 
 @Composable
 fun HeroApp() {

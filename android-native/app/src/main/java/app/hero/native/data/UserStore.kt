@@ -1,4 +1,4 @@
-package app.hero.native.data
+package app.hero.heronative.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.doublePreferencesKey

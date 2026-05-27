@@ -1,4 +1,4 @@
-package app.hero.native.data
+package app.hero.heronative.data
 
 import retrofit2.http.Body
 import retrofit2.http.POST

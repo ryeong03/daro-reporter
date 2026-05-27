@@ -1,11 +1,11 @@
-package app.hero.native.monitoring
+package app.hero.heronative.monitoring
 
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import app.hero.native.data.HeartRatePoint
-import app.hero.native.data.LocationData
-import app.hero.native.data.UserStore
+import app.hero.heronative.data.HeartRatePoint
+import app.hero.heronative.data.LocationData
+import app.hero.heronative.data.UserStore
 import kotlinx.coroutines.flow.first
 import java.time.Instant
 

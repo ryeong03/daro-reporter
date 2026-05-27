@@ -1,6 +1,6 @@
-package app.hero.native.data
+package app.hero.heronative.data
 
-import app.hero.native.BuildConfig
+import app.hero.heronative.BuildConfig
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient

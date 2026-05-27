@@ -1,13 +1,13 @@
-package app.hero.native.monitoring
+package app.hero.heronative.monitoring
 
-import app.hero.native.data.ApiClient
-import app.hero.native.data.HealthDataRequest
-import app.hero.native.data.HeartRatePoint
-import app.hero.native.data.LocationData
+import app.hero.heronative.data.ApiClient
+import app.hero.heronative.data.HealthDataRequest
+import app.hero.heronative.data.HeartRatePoint
+import app.hero.heronative.data.LocationData
 import java.time.Instant
 
 class MonitoringRepository(
-    private val api: app.hero.native.data.HeroApi = ApiClient.api
+    private val api: app.hero.heronative.data.HeroApi = ApiClient.api
 ) {
     suspend fun sendHealth(
         userId: String,
@@ -15,7 +15,7 @@ class MonitoringRepository(
         heartRate: List<HeartRatePoint>,
         steps10Min: Long,
         location: LocationData
-    ): app.hero.native.data.HealthDataResponse {
+    ): app.hero.heronative.data.HealthDataResponse {
         val payload = HealthDataRequest(
             userId = userId,
             deviceId = deviceId,

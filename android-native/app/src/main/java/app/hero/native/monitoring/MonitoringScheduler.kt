@@ -1,4 +1,4 @@
-package app.hero.native.monitoring
+package app.hero.heronative.monitoring
 
 import android.content.Context
 import androidx.work.Constraints

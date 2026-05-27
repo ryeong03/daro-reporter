@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "app.hero.native"
+    namespace = "app.hero.heronative"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "app.hero.native"
+        applicationId = "app.hero.heronative"
         minSdk = 28
         targetSdk = 34
         versionCode = 1
