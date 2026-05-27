@@ -52,18 +52,20 @@ npm run android
 
 ### POST /health 스키마
 
+백엔드 `healthPayloadSchema` 와 동일합니다 (`src/services/healthPayload.ts`에서 변환).
+
 ```typescript
-interface HealthPostRequest {
-  userId: string;
-  heartRate: number;
-  steps: number;
-  latitude: number;
-  longitude: number;
-  timestamp: string; // ISO 8601
+interface HealthDataRequest {
+  device_id: string;
+  user_id: string;       // UUID
+  timestamp: string;     // ISO 8601
+  heart_rate: { t: string; bpm: number }[];
+  steps_10min: number;
+  location: { lat: number; lng: number; accuracy: number };
 }
 ```
 
-핵심 파일: `src/api/client.ts` (`postHealth`), `src/services/dataSync.ts`, `foregroundTask.ts`
+핵심 파일: `healthPayload.ts`, `dataSync.ts`, `api/client.ts` (`postHealth`), `foregroundTask.ts`
 
 ## 프로젝트 구조
 

@@ -42,6 +42,7 @@ export interface LocationData {
   accuracy: number;
 }
 
+/** POST /health 요청 바디 (backend healthPayloadSchema 와 동일) */
 export interface HealthDataRequest {
   device_id: string;
   user_id: string;
@@ -51,8 +52,6 @@ export interface HealthDataRequest {
   location: LocationData;
 }
 
-// ─── POST /health (5~10분 주기 백그라운드 전송) ───
-
 export type DetectionState =
   | 'normal'
   | 'stage1_hr_high'
@@ -60,39 +59,13 @@ export type DetectionState =
   | 'observing'
   | 'alert';
 
-/**
- * POST /health 요청 바디.
- * Notifee Foreground Service에서 주기적으로 서버로 전송합니다.
- */
-export interface HealthPostRequest {
-  userId: string;
-  heartRate: number;
-  steps: number;
-  latitude: number;
-  longitude: number;
-  /** ISO 8601 (예: 2026-05-27T12:00:00.000Z) */
-  timestamp: string;
-}
-
-export interface HealthPostResponse {
+export interface HealthDataResponse {
   status: string;
   detection?: {
     state: DetectionState;
     triggered: boolean;
     eventType?: 'heatstroke' | 'syncope' | 'fall';
   };
-}
-
-/** @deprecated HealthPostRequest 사용 */
-export type HealthVitalsBody = HealthPostRequest;
-
-/** @deprecated HealthPostResponse 사용 */
-export type HealthDataResponse = HealthPostResponse;
-
-/** 낙상 등 긴급 이벤트 전송 바디 */
-export interface AlertEventBody extends HealthPostRequest {
-  type?: AlertType;
-  message?: string;
 }
 
 // ─── 알림 전송 ───
