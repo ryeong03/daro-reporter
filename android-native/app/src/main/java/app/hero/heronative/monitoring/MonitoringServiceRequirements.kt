@@ -34,6 +34,7 @@ object MonitoringServiceRequirements {
     fun canStartForeground(context: Context): Boolean =
         hasActivityRecognition(context) && hasLocationAccess(context)
 
+    /** 홈 진입 시 1차 요청 — 백그라운드 위치는 별도(거부율 높음) */
     fun monitoringRuntimePermissions(): Array<String> {
         val perms = mutableListOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -45,9 +46,13 @@ object MonitoringServiceRequirements {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             perms.add(Manifest.permission.POST_NOTIFICATIONS)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            perms.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        }
         return perms.toTypedArray()
     }
+
+    fun backgroundLocationPermission(): String? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            Manifest.permission.ACCESS_BACKGROUND_LOCATION
+        } else {
+            null
+        }
 }

@@ -107,7 +107,8 @@ fun HomeScreen(
         val hasHc = healthManager.hasAllPermissions()
         MonitoringStateHolder.update { it.copy(watchConnected = hasHc) }
         if (LocationProvider(appContext).hasFineLocation()) {
-            startGpsTracking(context)
+            LocationTrackerHolder.ensureStarted(context)
+            DataSyncManager(context).refreshGpsStatus()
         }
         permissionStep = if (hasHc) HomePermissionStep.Location else HomePermissionStep.HealthConnect
     }
@@ -270,12 +271,12 @@ fun HomeScreen(
     }
 }
 
-@Composable
 private suspend fun startGpsTracking(context: Context) {
     LocationTrackerHolder.ensureStarted(context)
     DataSyncManager(context).refreshGpsStatus()
 }
 
+@Composable
 private fun GridCard(
     icon: String,
     value: String,
