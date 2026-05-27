@@ -1,9 +1,19 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useUser } from '../hooks/useUser';
+import { isHealthMonitoringSessionActive } from '../services/healthMonitoring';
+import {
+  HEALTH_POLL_INTERVAL_MS,
+  HEALTH_SYNC_INTERVAL_MS,
+} from '../services/foregroundTask';
 
 export default function SettingsScreen() {
   const { userName, userId, logout } = useUser();
+  const [monitoringActive, setMonitoringActive] = useState(false);
+
+  useEffect(() => {
+    setMonitoringActive(isHealthMonitoringSessionActive());
+  }, []);
 
   const handleLogout = () => {
     Alert.alert('초기화', '등록 정보를 삭제하고 처음부터 다시 등록하시겠습니까?', [
@@ -32,18 +42,27 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>모니터링</Text>
         <View style={styles.row}>
-          <Text style={styles.rowLabel}>심박 수집 주기</Text>
-          <Text style={styles.rowValue}>10초</Text>
+          <Text style={styles.rowLabel}>백그라운드 서비스</Text>
+          <View style={[styles.badge, monitoringActive ? styles.badgeOn : styles.badgeOff]}>
+            <Text style={[styles.badgeText, monitoringActive ? styles.badgeTextOn : styles.badgeTextOff]}>
+              {monitoringActive ? '동작 중' : '중지됨'}
+            </Text>
+          </View>
         </View>
         <View style={styles.divider} />
         <View style={styles.row}>
-          <Text style={styles.rowLabel}>GPS 수집 주기</Text>
-          <Text style={styles.rowValue}>5분 (이상 시 30초)</Text>
+          <Text style={styles.rowLabel}>상태바 알림</Text>
+          <Text style={styles.rowValue}>안전 모니터링 동작 중</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.row}>
-          <Text style={styles.rowLabel}>데이터 전송 주기</Text>
-          <Text style={styles.rowValue}>10분</Text>
+          <Text style={styles.rowLabel}>심박·걸음 수집</Text>
+          <Text style={styles.rowValue}>{HEALTH_POLL_INTERVAL_MS / 1000}초</Text>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>서버 전송 (POST /health)</Text>
+          <Text style={styles.rowValue}>{HEALTH_SYNC_INTERVAL_MS / 60_000}분</Text>
         </View>
       </View>
 
@@ -102,4 +121,10 @@ const styles = StyleSheet.create({
   },
   dangerBtnText: { fontSize: 16, fontWeight: '600', color: '#e63946' },
   footer: { textAlign: 'center', fontSize: 13, color: '#adb5bd', marginTop: 24 },
+  badge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  badgeOn: { backgroundColor: '#e8f5e9' },
+  badgeOff: { backgroundColor: '#f8d7da' },
+  badgeText: { fontSize: 13, fontWeight: '600' },
+  badgeTextOn: { color: '#2d6a4f' },
+  badgeTextOff: { color: '#d62828' },
 });
