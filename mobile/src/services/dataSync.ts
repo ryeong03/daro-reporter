@@ -1,15 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { sendHealthData, sendAlert } from '../api/client';
-import { readHeartRate, readSteps } from './healthConnect';
+import { postHealth, postAlertEvent } from '../api/client';
 import { getCurrentLocation, switchToAlertMode, switchToNormalMode } from './locationService';
-import { updateNotification } from './backgroundService';
-import { getDeviceId, getUserId } from '../storage/userStorage';
-import type { HealthDataRequest, AlertRequest } from '../api/types';
+import { refreshForegroundNotificationBody } from './backgroundService';
+import { getUserId } from '../storage/userStorage';
+import type { AlertEventBody, HealthPostRequest } from '../api/types';
+import type { HealthSnapshot } from './healthDataCollector';
 
-const OFFLINE_QUEUE_KEY = '@hero_offline_queue';
-const SYNC_INTERVAL_MS = 10 * 60 * 1000;
+const OFFLINE_QUEUE_KEY = '@hero_health_post_queue';
+const MAX_QUEUE_SIZE = 100;
 
-let syncTimer: ReturnType<typeof setInterval> | null = null;
 let onStateChange: ((state: string, heartRate: number, steps: number) => void) | null = null;
 
 export function setStateChangeListener(
@@ -18,104 +17,61 @@ export function setStateChangeListener(
   onStateChange = listener;
 }
 
-export async function startDataSync() {
-  await syncOnce();
+/** HealthSnapshot → POST /health 바디 변환. 필수 값이 없으면 null */
+export function buildHealthPostRequest(
+  snapshot: HealthSnapshot,
+  userId: string
+): HealthPostRequest | null {
+  const heartRate =
+    snapshot.heartRate ??
+    (snapshot.heartRateSamples.length > 0
+      ? snapshot.heartRateSamples[snapshot.heartRateSamples.length - 1].bpm
+      : null);
 
-  syncTimer = setInterval(async () => {
-    await syncOnce();
-  }, SYNC_INTERVAL_MS);
-
-  console.log(`[DataSync] Started (every ${SYNC_INTERVAL_MS / 1000}s)`);
-}
-
-export function stopDataSync() {
-  if (syncTimer) {
-    clearInterval(syncTimer);
-    syncTimer = null;
-  }
-}
-
-async function syncOnce() {
-  const userId = await getUserId();
-  const deviceId = await getDeviceId();
-  if (!userId || !deviceId) return;
-
-  const heartRateSamples = await readHeartRate(10);
-  const steps = await readSteps(10);
-
-  if (heartRateSamples.length === 0) {
-    console.log('[DataSync] No heart rate data, skipping');
-    return;
+  if (heartRate == null) {
+    return null;
   }
 
-  let location;
-  try {
-    location = await getCurrentLocation();
-  } catch {
-    console.warn('[DataSync] GPS unavailable, skipping sync');
-    return;
+  if (!snapshot.location) {
+    return null;
   }
 
-  const payload: HealthDataRequest = {
-    device_id: deviceId,
-    user_id: userId,
-    timestamp: new Date().toISOString(),
-    heart_rate: heartRateSamples.map((s) => ({ t: s.timestamp, bpm: s.bpm })),
-    steps_10min: steps,
-    location,
+  return {
+    userId,
+    heartRate,
+    steps: snapshot.steps,
+    latitude: snapshot.location.lat,
+    longitude: snapshot.location.lng,
+    timestamp: snapshot.collectedAt,
   };
-
-  try {
-    const response = await sendHealthData(payload);
-
-    const avgBpm = Math.round(
-      heartRateSamples.reduce((sum, s) => sum + s.bpm, 0) / heartRateSamples.length
-    );
-
-    onStateChange?.(response.detection.state, avgBpm, steps);
-
-    if (response.detection.triggered) {
-      switchToAlertMode();
-      await updateNotification(
-        `⚠️ 이상 감지 — AI 확인 전화 진행 중 (심박: ${avgBpm} BPM)`
-      );
-    } else if (response.detection.state === 'normal') {
-      switchToNormalMode();
-      await updateNotification(`심박: ${avgBpm} BPM · 걸음: ${steps}보`);
-    }
-
-    await flushOfflineQueue();
-
-    console.log(`[DataSync] Sent — state: ${response.detection.state}, HR: ${avgBpm}, steps: ${steps}`);
-  } catch (err) {
-    console.error('[DataSync] Failed, queueing offline:', err);
-    await queueOffline(payload);
-  }
 }
 
-async function queueOffline(payload: HealthDataRequest) {
+async function queueOffline(payload: HealthPostRequest): Promise<void> {
   const existing = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
-  const queue: HealthDataRequest[] = existing ? JSON.parse(existing) : [];
+  const queue: HealthPostRequest[] = existing ? JSON.parse(existing) : [];
   queue.push(payload);
 
-  if (queue.length > 100) queue.splice(0, queue.length - 100);
+  if (queue.length > MAX_QUEUE_SIZE) {
+    queue.splice(0, queue.length - MAX_QUEUE_SIZE);
+  }
 
   await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+  console.log(`[DataSync] Queued offline (${queue.length} pending)`);
 }
 
-async function flushOfflineQueue() {
+async function flushOfflineQueue(): Promise<void> {
   const existing = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
   if (!existing) return;
 
-  const queue: HealthDataRequest[] = JSON.parse(existing);
+  const queue: HealthPostRequest[] = JSON.parse(existing);
   if (queue.length === 0) return;
 
-  console.log(`[DataSync] Flushing ${queue.length} offline items`);
-  const failed: HealthDataRequest[] = [];
+  console.log(`[DataSync] Flushing ${queue.length} offline POST /health items`);
+  const failed: HealthPostRequest[] = [];
 
   for (const payload of queue) {
     try {
-      await sendHealthData(payload);
+      await postHealth(payload);
     } catch {
       failed.push(payload);
     }
@@ -129,26 +85,65 @@ async function flushOfflineQueue() {
   }
 }
 
-export async function sendFallAlert() {
+/**
+ * 수집된 스냅샷을 POST /health 로 서버에 전송합니다.
+ * Foreground Service의 5분 주기 타이머에서 호출됩니다.
+ */
+export async function syncHealthSnapshot(snapshot: HealthSnapshot): Promise<boolean> {
   const userId = await getUserId();
-  const deviceId = await getDeviceId();
-  if (!userId || !deviceId) return;
+  if (!userId) {
+    console.log('[DataSync] userId 없음 — POST /health 건너뜀 (온보딩 후 전송)');
+    return false;
+  }
+
+  const payload = buildHealthPostRequest(snapshot, userId);
+  if (!payload) {
+    console.log('[DataSync] 심박 또는 GPS 없음 — POST /health 건너뜀');
+    return false;
+  }
+
+  try {
+    const response = await postHealth(payload);
+
+    const state = response.detection?.state ?? 'normal';
+    onStateChange?.(state, payload.heartRate, payload.steps);
+    switchToNormalMode();
+
+    await flushOfflineQueue();
+
+    console.log(
+      `[DataSync] POST /health OK — HR: ${payload.heartRate}, steps: ${payload.steps}, state: ${state}`
+    );
+    return true;
+  } catch (err) {
+    console.error('[DataSync] POST /health failed:', err);
+    await queueOffline(payload);
+    await refreshForegroundNotificationBody('네트워크 오류 · 데이터 오프라인 저장');
+    return false;
+  }
+}
+
+export async function sendFallAlert(): Promise<void> {
+  const userId = await getUserId();
+  if (!userId) return;
 
   try {
     const location = await getCurrentLocation();
-    const payload: AlertRequest = {
-      device_id: deviceId,
-      user_id: userId,
-      type: 'fall_detected',
+    const payload: AlertEventBody = {
+      userId,
+      heartRate: 0,
+      steps: 0,
+      latitude: location.lat,
+      longitude: location.lng,
       timestamp: new Date().toISOString(),
-      location: { lat: location.lat, lng: location.lng },
+      type: 'fall_detected',
     };
 
-    const response = await sendAlert(payload);
-    console.log('[DataSync] Fall alert sent:', response);
+    await postAlertEvent(payload);
+    console.log('[DataSync] Fall alert sent');
 
     switchToAlertMode();
-    await updateNotification('🚨 낙상 감지 — 긴급 알림 전송됨');
+    await refreshForegroundNotificationBody('낙상 감지 · 긴급 알림 전송됨');
   } catch (err) {
     console.error('[DataSync] Fall alert failed:', err);
   }

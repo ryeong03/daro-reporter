@@ -2,21 +2,53 @@ import {
   initialize,
   requestPermission,
   readRecords,
+  getGrantedPermissions,
 } from 'react-native-health-connect';
+import type { Permission } from 'react-native-health-connect';
 
-export async function initHealthConnect(): Promise<boolean> {
+const HEALTH_READ_PERMISSIONS: Permission[] = [
+  { accessType: 'read', recordType: 'HeartRate' },
+  { accessType: 'read', recordType: 'Steps' },
+];
+
+export async function initializeHealthConnect(): Promise<boolean> {
   try {
     const initialized = await initialize();
     if (!initialized) {
       console.warn('[HealthConnect] Failed to initialize');
-      return false;
+    }
+    return initialized;
+  } catch (err) {
+    console.error('[HealthConnect] Initialize error:', err);
+    return false;
+  }
+}
+
+export async function requestHealthDataPermissions(): Promise<Permission[]> {
+  return requestPermission(HEALTH_READ_PERMISSIONS);
+}
+
+export async function hasHealthDataPermissions(): Promise<boolean> {
+  try {
+    const granted = await getGrantedPermissions();
+    const types = granted.map((p) => p.recordType);
+    return types.includes('HeartRate') && types.includes('Steps');
+  } catch {
+    return false;
+  }
+}
+
+/** 초기화 + 권한 확인 (이미 허용된 경우 재요청하지 않음) */
+export async function initHealthConnect(): Promise<boolean> {
+  try {
+    const initialized = await initializeHealthConnect();
+    if (!initialized) return false;
+
+    if (await hasHealthDataPermissions()) {
+      return true;
     }
 
-    const granted = await requestPermission([
-      { accessType: 'read', recordType: 'HeartRate' },
-      { accessType: 'read', recordType: 'Steps' },
-    ]);
-
+    const granted = await requestHealthDataPermissions();
     console.log('[HealthConnect] Permissions granted:', granted);
     return granted.length > 0;
   } catch (err) {
@@ -36,7 +68,7 @@ export async function readHeartRate(sinceMinutes: number = 10): Promise<HeartRat
   const endTime = now.toISOString();
 
   try {
-    const result = await readRecords('HeartRate', {
+    const { records } = await readRecords('HeartRate', {
       timeRangeFilter: {
         operator: 'between',
         startTime,
@@ -45,7 +77,7 @@ export async function readHeartRate(sinceMinutes: number = 10): Promise<HeartRat
     });
 
     const samples: HeartRateSample[] = [];
-    for (const record of result) {
+    for (const record of records) {
       if ('samples' in record && Array.isArray(record.samples)) {
         for (const sample of record.samples) {
           samples.push({
@@ -69,7 +101,7 @@ export async function readSteps(sinceMinutes: number = 10): Promise<number> {
   const endTime = now.toISOString();
 
   try {
-    const result = await readRecords('Steps', {
+    const { records } = await readRecords('Steps', {
       timeRangeFilter: {
         operator: 'between',
         startTime,
@@ -78,7 +110,7 @@ export async function readSteps(sinceMinutes: number = 10): Promise<number> {
     });
 
     let totalSteps = 0;
-    for (const record of result) {
+    for (const record of records) {
       if ('count' in record) {
         totalSteps += (record as any).count;
       }
