@@ -27,7 +27,9 @@ class DataSyncManager(
     suspend fun syncOnce(session: UserSession): Boolean {
         val healthConnectReady = healthManager.hasAllPermissions()
         val heartRecords = if (healthConnectReady) {
-            runCatching { healthManager.readHeartRates(10) }.getOrElse { emptyList() }
+            runCatching {
+                healthManager.readHeartRates(HealthConnectManager.RECENT_HEART_RATE_WINDOW_MINUTES)
+            }.getOrElse { emptyList() }
         } else {
             emptyList()
         }
@@ -47,7 +49,11 @@ class DataSyncManager(
         }
 
         val steps = stepRecords.sumOf { it.count.toLong() }
-        val latestBpm = points.lastOrNull()?.bpm?.toInt() ?: 0
+        val latestBpm = if (healthConnectReady) {
+            healthManager.readLatestHeartRateBpm() ?: points.lastOrNull()?.bpm?.toInt() ?: 0
+        } else {
+            0
+        }
 
         MonitoringStateHolder.update {
             it.copy(
@@ -140,11 +146,9 @@ class DataSyncManager(
             return
         }
         MonitoringStateHolder.update { it.copy(watchConnected = true) }
-        // RN getLatestHeartRate와 동일하게 최근 10분 구간 조회 (워치 동기화 지연 허용)
-        val records = runCatching { healthManager.readHeartRates(10) }.getOrElse { emptyList() }
-        val bpm = records.lastOrNull()?.samples?.lastOrNull()?.beatsPerMinute ?: return
+        val bpm = healthManager.readLatestHeartRateBpm() ?: return
         MonitoringStateHolder.update {
-            it.copy(heartRate = bpm.toInt(), watchConnected = true)
+            it.copy(heartRate = bpm, watchConnected = true)
         }
     }
 

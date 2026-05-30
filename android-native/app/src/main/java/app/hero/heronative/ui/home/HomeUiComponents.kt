@@ -128,6 +128,64 @@ fun HeartRateDisplay(
     }
 }
 
+@Composable
+fun HealthConnectSyncHintBanner(
+    permissionsGranted: Boolean,
+    onOpenHealthConnect: () -> Unit,
+    onOpenSamsungHealth: () -> Unit,
+    onOpenGuide: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(HeroColors.StatusCardNormal)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = if (permissionsGranted) {
+                "삼성헬스에 심박이 있어도 Health Connect로 공유되지 않으면 Hero에 표시되지 않아요.\n" +
+                    "Samsung Health → 설정 → Health Connect(「애플리케이션」) → 심박 데이터 공유를 확인해주세요."
+            } else {
+                "Hero가 Health Connect에서 심박을 읽을 권한이 필요해요. 아래에서 권한을 허용해주세요."
+            },
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = HeroColors.TextBody,
+            lineHeight = 22.sp,
+        )
+        if (permissionsGranted) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HintActionChip(text = "Samsung Health", onClick = onOpenSamsungHealth)
+                HintActionChip(text = "Health Connect", onClick = onOpenHealthConnect)
+                HintActionChip(text = "설정 안내", onClick = onOpenGuide)
+            }
+        } else {
+            HintActionChip(text = "Health Connect 권한 허용", onClick = onOpenHealthConnect)
+        }
+    }
+}
+
+@Composable
+private fun HintActionChip(
+    text: String,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = text,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(HeroColors.Surface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Medium,
+        color = HeroColors.Primary,
+    )
+}
+
 data class ConnectionItem(
     val icon: ImageVector,
     val title: String,

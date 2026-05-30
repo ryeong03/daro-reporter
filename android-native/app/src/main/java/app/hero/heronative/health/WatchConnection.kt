@@ -5,7 +5,7 @@ import android.content.Context
 /** Health Connect에 워치 심박 샘플이 최근에 들어왔는지 확인 */
 suspend fun hasRecentWatchHeartRate(
     healthManager: HealthConnectManager,
-    sinceMinutes: Long = 10,
+    sinceMinutes: Long = HealthConnectManager.RECENT_HEART_RATE_WINDOW_MINUTES,
 ): Boolean {
     if (!healthManager.isAvailable || !healthManager.hasAllPermissions()) return false
     return healthManager.readHeartRates(sinceMinutes)

@@ -181,6 +181,8 @@ fun HomeScreen(
 
     val healthAppConnected = ui.watchConnected
     val deviceConnected = watchDeviceConnected
+    val healthDataFlowing = deviceHasHeartRate || ui.heartRate > 0
+    val showHealthSyncHint = ui.heartRate <= 0 && (healthAppConnected || deviceConnected)
     val networkConnected = NetworkUtils.hasInternet(context) || ui.lastSync != null
     val isDisconnected = !deviceConnected && ui.heartRate <= 0 && !deviceHasHeartRate
     val stateInfo = if (isDisconnected && ui.detectionState == "normal") {
@@ -258,7 +260,7 @@ fun HomeScreen(
                 ConnectionItem(
                     icon = HomeConnectionIcons.HealthApp,
                     title = "헬스 앱 연결",
-                    connected = healthAppConnected,
+                    connected = healthAppConnected && healthDataFlowing,
                     onClick = openHealthConnect,
                 ),
                 ConnectionItem(
@@ -269,6 +271,16 @@ fun HomeScreen(
                 ),
             ),
         )
+
+        if (showHealthSyncHint) {
+            Spacer(Modifier.height(16.dp))
+            HealthConnectSyncHintBanner(
+                permissionsGranted = healthAppConnected,
+                onOpenHealthConnect = openHealthConnect,
+                onOpenSamsungHealth = { SamsungHealthNavigator.openSamsungHealth(context) },
+                onOpenGuide = { showHrGuide = true },
+            )
+        }
         SnackbarHost(hostState = snack)
     }
 }

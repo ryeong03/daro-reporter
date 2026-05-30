@@ -53,6 +53,29 @@ class HealthConnectManager(context: Context) {
         return runCatching { c.readRecords(req).records }.getOrElse { emptyList() }
     }
 
+    /** HC에 저장된 가장 최근 심박 샘플 BPM (표시용 — 동기화 지연 허용) */
+    suspend fun readLatestHeartRateBpm(sinceMinutes: Long = DISPLAY_HEART_RATE_WINDOW_MINUTES): Int? {
+        if (!hasAllPermissions()) return null
+        return readHeartRates(sinceMinutes)
+            .flatMap { rec ->
+                rec.samples.map { sample ->
+                    (sample.time ?: rec.endTime) to sample.beatsPerMinute
+                }
+            }
+            .maxByOrNull { it.first }
+            ?.second
+            ?.toInt()
+            ?.takeIf { it > 0 }
+    }
+
+    companion object {
+        /** HC → Hero 심박 수신 여부 판정 (최근 동기화) */
+        const val RECENT_HEART_RATE_WINDOW_MINUTES = 60L
+
+        /** 화면 표시용 조회 구간 (Fit3 → 삼성헬스 → HC 지연) */
+        const val DISPLAY_HEART_RATE_WINDOW_MINUTES = 24 * 60L
+    }
+
     suspend fun readSteps(sinceMinutes: Long): List<StepsRecord> {
         val c = client ?: return emptyList()
         val now = Instant.now()
