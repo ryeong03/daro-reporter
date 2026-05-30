@@ -55,7 +55,7 @@ class HealthConnectManager(context: Context) {
 
     /** HC에 저장된 가장 최근 심박 샘플 (표시·수신 시각용) */
     suspend fun readLatestHeartRate(
-        sinceMinutes: Long = DISPLAY_HEART_RATE_WINDOW_MINUTES,
+        sinceMinutes: Long = POLL_HEART_RATE_WINDOW_MINUTES,
     ): HeartRateSample? {
         if (!hasAllPermissions()) return null
         return readHeartRates(sinceMinutes)
@@ -72,15 +72,15 @@ class HealthConnectManager(context: Context) {
     }
 
     suspend fun readLatestHeartRateBpm(
-        sinceMinutes: Long = DISPLAY_HEART_RATE_WINDOW_MINUTES,
+        sinceMinutes: Long = POLL_HEART_RATE_WINDOW_MINUTES,
     ): Int? = readLatestHeartRate(sinceMinutes)?.bpm
 
     companion object {
         /** HC → Hero 심박 수신 여부 판정 (최근 동기화) */
         const val RECENT_HEART_RATE_WINDOW_MINUTES = 60L
 
-        /** 화면 표시용 조회 구간 (Fit3 → 삼성헬스 → HC 지연) */
-        const val DISPLAY_HEART_RATE_WINDOW_MINUTES = 24 * 60L
+        /** 10초 폴링·UI 표시용 조회 구간 */
+        const val POLL_HEART_RATE_WINDOW_MINUTES = 30L
     }
 
     suspend fun readSteps(sinceMinutes: Long): List<StepsRecord> {

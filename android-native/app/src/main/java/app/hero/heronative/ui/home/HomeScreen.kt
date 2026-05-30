@@ -150,33 +150,21 @@ fun HomeScreen(
     val dataSync = remember { DataSyncManager(context) }
 
     LaunchedEffect(session.userId) {
-        var tick = 0
         while (true) {
-            dataSync.pollHeartRate()
-            if (tick % 2 == 0) {
-                val snapshot = ConnectionStatusRefresher.refresh(context, healthManager)
-                deviceHasHeartRate = snapshot.hasHeartRate
-                watchDeviceConnected = snapshot.deviceConnected
-                if (snapshot.bluetoothWatchBonded && !snapshot.hasHeartRate && !hrGuidePrompted) {
-                    showHrGuide = true
-                    hrGuidePrompted = true
-                }
+            val serverSync = !MonitoringForegroundService.isRunning
+            dataSync.tick(session, serverSync = serverSync)
+            val snapshot = ConnectionStatusRefresher.refresh(context, healthManager)
+            deviceHasHeartRate = snapshot.hasHeartRate
+            watchDeviceConnected = snapshot.deviceConnected
+            if (snapshot.bluetoothWatchBonded && !snapshot.hasHeartRate && !hrGuidePrompted) {
+                showHrGuide = true
+                hrGuidePrompted = true
             }
-            if (tick % (DataSyncManager.HEALTH_SYNC_INTERVAL_MS / DataSyncManager.HEART_RATE_POLL_INTERVAL_MS).toInt() == 0 &&
-                healthManager.isAvailable
-            ) {
-                runCatching {
-                    if (healthManager.hasAllPermissions()) {
-                        dataSync.syncOnce(session)
-                    }
-                }
-            }
-            if (tick % 2 == 0 && LocationProvider(appContext).hasFineLocation()) {
+            if (LocationProvider(appContext).hasFineLocation()) {
                 LocationTrackerHolder.ensureStarted(context)
                 dataSync.refreshGpsStatus()
             }
-            tick++
-            delay(DataSyncManager.HEART_RATE_POLL_INTERVAL_MS)
+            delay(DataSyncManager.HEALTH_SYNC_INTERVAL_MS)
         }
     }
 
@@ -260,6 +248,7 @@ fun HomeScreen(
                 lastHeartRateAt = ui.lastHeartRateAt,
                 lastHcCheckedAt = ui.lastHcCheckedAt,
                 lastServerSync = ui.lastSync,
+                lastHeartRateMeasuredEpochMs = ui.lastHeartRateMeasuredEpochMs,
             ),
         )
 

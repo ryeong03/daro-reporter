@@ -12,6 +12,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class DataSyncManager(
     context: Context,
@@ -24,20 +26,69 @@ class DataSyncManager(
     private val timeFormatter =
         DateTimeFormatter.ofPattern("HH:mm:ss", Locale.KOREA).withZone(ZoneId.systemDefault())
 
+    /**
+     * HC 읽기(10초) + 선택적 서버 sync.
+     * @param serverSync false면 UI만 갱신 (FGS가 서버 sync 담당할 때 홈에서 사용)
+     */
+    suspend fun tick(session: UserSession, serverSync: Boolean = true) {
+        tickMutex.withLock {
+            refreshFromHealthConnect()
+            if (serverSync) {
+                syncToServer(session)
+            }
+        }
+    }
+
+    /** @deprecated [tick] 사용 */
     suspend fun syncOnce(session: UserSession): Boolean {
+        tick(session, serverSync = true)
+        return true
+    }
+
+    /** HC에서 최신 심박·걸음을 읽어 UI만 갱신한다 */
+    suspend fun refreshFromHealthConnect() {
+        val checkedAt = timeFormatter.format(Instant.now())
+        if (!healthManager.hasAllPermissions()) {
+            MonitoringStateHolder.update {
+                it.copy(watchConnected = false, lastHcCheckedAt = checkedAt)
+            }
+            return
+        }
+
+        val sample = healthManager.readLatestHeartRate()
+        val stepRecords = runCatching { healthManager.readSteps(10) }.getOrElse { emptyList() }
+        val steps = stepRecords.sumOf { it.count.toLong() }
+
+        MonitoringStateHolder.update {
+            if (sample != null) {
+                it.copy(
+                    heartRate = sample.bpm,
+                    watchConnected = true,
+                    lastHeartRateAt = timeFormatter.format(sample.measuredAt),
+                    lastHeartRateMeasuredEpochMs = sample.measuredAt.toEpochMilli(),
+                    lastHcCheckedAt = checkedAt,
+                    steps = if (steps > 0) steps else it.steps,
+                )
+            } else {
+                it.copy(
+                    watchConnected = true,
+                    lastHcCheckedAt = checkedAt,
+                    steps = if (steps > 0) steps else it.steps,
+                )
+            }
+        }
+    }
+
+    /** 서버로 헬스 데이터 전송 + detectionState 갱신 (UI BPM은 덮어쓰지 않음) */
+    suspend fun syncToServer(session: UserSession): Boolean {
         val healthConnectReady = healthManager.hasAllPermissions()
-        val heartRecords = if (healthConnectReady) {
-            runCatching {
-                healthManager.readHeartRates(HealthConnectManager.RECENT_HEART_RATE_WINDOW_MINUTES)
-            }.getOrElse { emptyList() }
-        } else {
-            emptyList()
-        }
-        val stepRecords = if (healthConnectReady) {
-            runCatching { healthManager.readSteps(10) }.getOrElse { emptyList() }
-        } else {
-            emptyList()
-        }
+        if (!healthConnectReady) return false
+
+        val heartRecords = runCatching {
+            healthManager.readHeartRates(HealthConnectManager.RECENT_HEART_RATE_WINDOW_MINUTES)
+        }.getOrElse { emptyList() }
+
+        val stepRecords = runCatching { healthManager.readSteps(10) }.getOrElse { emptyList() }
 
         val points = heartRecords.flatMap { rec ->
             rec.samples.map { s ->
@@ -48,32 +99,13 @@ class DataSyncManager(
             }
         }
 
-        val steps = stepRecords.sumOf { it.count.toLong() }
-        val latestSample = if (healthConnectReady) {
-            healthManager.readLatestHeartRate()
-        } else {
-            null
-        }
-        val latestBpm = latestSample?.bpm ?: points.lastOrNull()?.bpm?.toInt() ?: 0
-        val checkedAt = timeFormatter.format(Instant.now())
+        if (points.isEmpty()) return false
 
-        MonitoringStateHolder.update {
-            it.copy(
-                watchConnected = healthConnectReady,
-                lastHcCheckedAt = checkedAt,
-                heartRate = if (latestBpm > 0) latestBpm else it.heartRate,
-                lastHeartRateAt = latestSample?.let { s -> timeFormatter.format(s.measuredAt) }
-                    ?: it.lastHeartRateAt,
-                steps = if (steps > 0) steps else it.steps,
-            )
-        }
+        val steps = stepRecords.sumOf { it.count.toLong() }
 
         refreshGpsStatus()
 
-        if (!healthConnectReady || points.isEmpty()) return false
-
-        val location = locationProvider.getCurrentLocation()
-        if (location == null) return false
+        val location = locationProvider.getCurrentLocation() ?: return false
 
         val payload = HealthDataRequest(
             deviceId = session.deviceId,
@@ -102,7 +134,6 @@ class DataSyncManager(
             MonitoringStateHolder.update {
                 it.copy(
                     detectionState = response.detection.state,
-                    heartRate = avgBpm,
                     steps = steps,
                     gpsActive = true,
                     location = location,
@@ -144,44 +175,21 @@ class DataSyncManager(
         offlineQueue.replace(failed)
     }
 
-    suspend fun pollHeartRate() {
-        val checkedAt = timeFormatter.format(Instant.now())
-        if (!healthManager.hasAllPermissions()) {
-            MonitoringStateHolder.update {
-                it.copy(watchConnected = false, lastHcCheckedAt = checkedAt)
-            }
-            return
-        }
-        val sample = healthManager.readLatestHeartRate()
-        MonitoringStateHolder.update {
-            if (sample != null) {
-                it.copy(
-                    heartRate = sample.bpm,
-                    watchConnected = true,
-                    lastHeartRateAt = timeFormatter.format(sample.measuredAt),
-                    lastHcCheckedAt = checkedAt,
-                )
-            } else {
-                it.copy(watchConnected = true, lastHcCheckedAt = checkedAt)
-            }
-        }
-    }
+    /** @deprecated [refreshFromHealthConnect] 사용 */
+    suspend fun pollHeartRate() = refreshFromHealthConnect()
 
     companion object {
-        /** HC → UI 심박 표시 */
-        const val HEART_RATE_POLL_INTERVAL_MS = 1_000L
+        /** HC 읽기 + 서버 sync 공통 주기 */
+        const val HEALTH_SYNC_INTERVAL_MS = 10_000L
 
-        /** HC → 서버 감지(5분·2분 타이머). 10분이면 1단계 지속 놓칠 수 있음 */
-        const val HEALTH_SYNC_INTERVAL_MS = 2 * 60 * 1000L
+        private val tickMutex = Mutex()
     }
 
-    /** Health Connect 권한 상태만 UI에 반영한다 */
     suspend fun refreshHealthConnectStatus() {
         val ready = healthManager.hasAllPermissions()
         MonitoringStateHolder.update { it.copy(watchConnected = ready) }
     }
 
-    /** 위치 권한·좌표를 조회해 GPS UI 상태를 갱신한다 (헬스 동기화와 분리) */
     suspend fun refreshGpsStatus() {
         if (!locationProvider.hasFineLocation()) {
             MonitoringStateHolder.update { it.copy(gpsActive = false) }
@@ -218,7 +226,6 @@ object LocationTrackerHolder {
         }
     }
 
-    /** FGS 없이도 홈 화면에서 GPS 추적을 시작한다 */
     fun ensureStarted(context: Context) {
         if (!LocationProvider(context).hasFineLocation()) {
             MonitoringStateHolder.update { it.copy(gpsActive = false) }

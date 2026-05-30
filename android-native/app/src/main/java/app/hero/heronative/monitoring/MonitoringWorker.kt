@@ -14,7 +14,7 @@ class MonitoringWorker(
         val session = UserStore(applicationContext).getSessionOnce()
             ?: return Result.success()
         return runCatching {
-            DataSyncManager(applicationContext).syncOnce(session)
+            DataSyncManager(applicationContext).tick(session, serverSync = true)
         }.fold(
             onSuccess = { Result.success() },
             onFailure = { Result.retry() }

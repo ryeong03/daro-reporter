@@ -48,21 +48,21 @@ class MonitoringForegroundService : Service() {
         }
 
         scope.launch {
-            val session = UserStore(applicationContext).getSessionOnce() ?: return@launch
-            dataSync.refreshHealthConnectStatus()
-            LocationTrackerHolder.start(scope, app.hero.heronative.location.LocationProvider(applicationContext))
-            dataSync.syncOnce(session)
-            while (isActive) {
-                delay(DataSyncManager.HEALTH_SYNC_INTERVAL_MS)
-                val current = UserStore(applicationContext).getSessionOnce() ?: break
-                dataSync.syncOnce(current)
-            }
-        }
-
-        scope.launch {
-            while (isActive) {
-                dataSync.pollHeartRate()
-                delay(DataSyncManager.HEART_RATE_POLL_INTERVAL_MS)
+            isRunning = true
+            try {
+                if (UserStore(applicationContext).getSessionOnce() == null) return@launch
+                dataSync.refreshHealthConnectStatus()
+                LocationTrackerHolder.start(
+                    scope,
+                    app.hero.heronative.location.LocationProvider(applicationContext),
+                )
+                while (isActive) {
+                    val current = UserStore(applicationContext).getSessionOnce() ?: break
+                    dataSync.tick(current, serverSync = true)
+                    delay(DataSyncManager.HEALTH_SYNC_INTERVAL_MS)
+                }
+            } finally {
+                isRunning = false
             }
         }
 
@@ -128,6 +128,11 @@ class MonitoringForegroundService : Service() {
         private const val NOTIFICATION_ID = 1001
         private const val EXTRA_BODY = "body"
         private const val TAG = "MonitoringFgService"
+
+        /** FGS 동작 중이면 홈 루프는 HC refresh만 수행 */
+        @Volatile
+        var isRunning: Boolean = false
+            private set
 
         fun start(context: Context) {
             if (!MonitoringServiceRequirements.canStartForeground(context)) {
