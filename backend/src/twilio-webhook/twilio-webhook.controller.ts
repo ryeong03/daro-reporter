@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Query, Res, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, Res, HttpCode } from '@nestjs/common';
 import { Response } from 'express';
 import { TwilioWebhookService } from './twilio-webhook.service';
 
@@ -6,6 +6,7 @@ import { TwilioWebhookService } from './twilio-webhook.service';
 export class TwilioWebhookController {
   constructor(private readonly webhookService: TwilioWebhookService) {}
 
+  @Get('voice-response')
   @Post('voice-response')
   async voiceResponse(@Query('userId') userId: string, @Res() res: Response) {
     const twiml = await this.webhookService.generateVoiceResponse(userId);
