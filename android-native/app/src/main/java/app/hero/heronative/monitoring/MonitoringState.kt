@@ -12,6 +12,11 @@ data class MonitoringUiState(
     val watchConnected: Boolean = false,
     val bluetoothWatchBonded: Boolean = false,
     val gpsActive: Boolean = false,
+    /** HC 심박 샘플 측정 시각 (HH:mm:ss) */
+    val lastHeartRateAt: String? = null,
+    /** 마지막 HC 조회 시각 — 데이터 없을 때도 표시 */
+    val lastHcCheckedAt: String? = null,
+    /** 서버 전송 성공 시각 */
     val lastSync: String? = null,
     val aiCallActive: Boolean = false,
     val healthCenterActive: Boolean = false,

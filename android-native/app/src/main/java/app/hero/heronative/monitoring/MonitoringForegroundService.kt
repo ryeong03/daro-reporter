@@ -61,8 +61,8 @@ class MonitoringForegroundService : Service() {
 
         scope.launch {
             while (isActive) {
-                delay(10_000L)
                 dataSync.pollHeartRate()
+                delay(DataSyncManager.HEART_RATE_POLL_INTERVAL_MS)
             }
         }
 

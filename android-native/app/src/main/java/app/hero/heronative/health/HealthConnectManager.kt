@@ -53,8 +53,10 @@ class HealthConnectManager(context: Context) {
         return runCatching { c.readRecords(req).records }.getOrElse { emptyList() }
     }
 
-    /** HC에 저장된 가장 최근 심박 샘플 BPM (표시용 — 동기화 지연 허용) */
-    suspend fun readLatestHeartRateBpm(sinceMinutes: Long = DISPLAY_HEART_RATE_WINDOW_MINUTES): Int? {
+    /** HC에 저장된 가장 최근 심박 샘플 (표시·수신 시각용) */
+    suspend fun readLatestHeartRate(
+        sinceMinutes: Long = DISPLAY_HEART_RATE_WINDOW_MINUTES,
+    ): HeartRateSample? {
         if (!hasAllPermissions()) return null
         return readHeartRates(sinceMinutes)
             .flatMap { rec ->
@@ -62,11 +64,16 @@ class HealthConnectManager(context: Context) {
                     (sample.time ?: rec.endTime) to sample.beatsPerMinute
                 }
             }
+            .filter { it.second > 0 }
             .maxByOrNull { it.first }
-            ?.second
-            ?.toInt()
-            ?.takeIf { it > 0 }
+            ?.let { (time, bpm) ->
+                HeartRateSample(bpm = bpm.toInt(), measuredAt = time)
+            }
     }
+
+    suspend fun readLatestHeartRateBpm(
+        sinceMinutes: Long = DISPLAY_HEART_RATE_WINDOW_MINUTES,
+    ): Int? = readLatestHeartRate(sinceMinutes)?.bpm
 
     companion object {
         /** HC → Hero 심박 수신 여부 판정 (최근 동기화) */

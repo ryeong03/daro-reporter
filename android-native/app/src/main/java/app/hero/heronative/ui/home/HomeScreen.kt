@@ -147,6 +147,15 @@ fun HomeScreen(
         }
     }
 
+    val dataSync = remember { DataSyncManager(context) }
+
+    LaunchedEffect(session.userId) {
+        while (true) {
+            dataSync.pollHeartRate()
+            delay(DataSyncManager.HEART_RATE_POLL_INTERVAL_MS)
+        }
+    }
+
     LaunchedEffect(session.userId) {
         while (true) {
             val snapshot = ConnectionStatusRefresher.refresh(context, healthManager)
@@ -156,13 +165,9 @@ fun HomeScreen(
                 showHrGuide = true
                 hrGuidePrompted = true
             }
-            // BT 연결만으로는 BPM 없음 — HC 권한 있으면 항상 읽기 시도
-            if (snapshot.healthAppConnected) {
-                DataSyncManager(context).pollHeartRate()
-            }
             if (LocationProvider(appContext).hasFineLocation()) {
                 LocationTrackerHolder.ensureStarted(context)
-                DataSyncManager(context).refreshGpsStatus()
+                dataSync.refreshGpsStatus()
             }
             delay(2_000)
         }
@@ -244,7 +249,11 @@ fun HomeScreen(
             heartRate = ui.heartRate,
             heartColor = stateInfo.heartColor,
             cardBackground = stateInfo.cardBackground,
-            lastUpdatedLabel = formatLastUpdated(ui.lastSync),
+            lastUpdatedLabel = formatLastUpdated(
+                lastHeartRateAt = ui.lastHeartRateAt,
+                lastHcCheckedAt = ui.lastHcCheckedAt,
+                lastServerSync = ui.lastSync,
+            ),
         )
 
         Spacer(Modifier.height(24.dp))

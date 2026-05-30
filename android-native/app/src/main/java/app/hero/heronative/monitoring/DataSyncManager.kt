@@ -49,17 +49,21 @@ class DataSyncManager(
         }
 
         val steps = stepRecords.sumOf { it.count.toLong() }
-        val latestBpm = if (healthConnectReady) {
-            healthManager.readLatestHeartRateBpm() ?: points.lastOrNull()?.bpm?.toInt() ?: 0
+        val latestSample = if (healthConnectReady) {
+            healthManager.readLatestHeartRate()
         } else {
-            0
+            null
         }
+        val latestBpm = latestSample?.bpm ?: points.lastOrNull()?.bpm?.toInt() ?: 0
+        val checkedAt = timeFormatter.format(Instant.now())
 
         MonitoringStateHolder.update {
             it.copy(
-                // RN과 동일: 권한 기준으로 연결 상태 유지 (데이터 공백 시 끊김 방지)
                 watchConnected = healthConnectReady,
+                lastHcCheckedAt = checkedAt,
                 heartRate = if (latestBpm > 0) latestBpm else it.heartRate,
+                lastHeartRateAt = latestSample?.let { s -> timeFormatter.format(s.measuredAt) }
+                    ?: it.lastHeartRateAt,
                 steps = if (steps > 0) steps else it.steps,
             )
         }
@@ -141,15 +145,30 @@ class DataSyncManager(
     }
 
     suspend fun pollHeartRate() {
+        val checkedAt = timeFormatter.format(Instant.now())
         if (!healthManager.hasAllPermissions()) {
-            MonitoringStateHolder.update { it.copy(watchConnected = false) }
+            MonitoringStateHolder.update {
+                it.copy(watchConnected = false, lastHcCheckedAt = checkedAt)
+            }
             return
         }
-        MonitoringStateHolder.update { it.copy(watchConnected = true) }
-        val bpm = healthManager.readLatestHeartRateBpm() ?: return
+        val sample = healthManager.readLatestHeartRate()
         MonitoringStateHolder.update {
-            it.copy(heartRate = bpm, watchConnected = true)
+            if (sample != null) {
+                it.copy(
+                    heartRate = sample.bpm,
+                    watchConnected = true,
+                    lastHeartRateAt = timeFormatter.format(sample.measuredAt),
+                    lastHcCheckedAt = checkedAt,
+                )
+            } else {
+                it.copy(watchConnected = true, lastHcCheckedAt = checkedAt)
+            }
         }
+    }
+
+    companion object {
+        const val HEART_RATE_POLL_INTERVAL_MS = 1_000L
     }
 
     /** Health Connect 권한 상태만 UI에 반영한다 */

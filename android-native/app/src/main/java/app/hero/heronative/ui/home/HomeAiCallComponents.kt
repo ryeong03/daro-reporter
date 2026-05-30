@@ -98,8 +98,16 @@ fun AiCallDialog(
     }
 }
 
-fun formatLastUpdated(lastSync: String?): String =
-    if (lastSync.isNullOrBlank()) "최근 업데이트 : 없음" else "최근 업데이트 : $lastSync"
+fun formatLastUpdated(
+    lastHeartRateAt: String?,
+    lastHcCheckedAt: String? = null,
+    lastServerSync: String? = null,
+): String = when {
+    !lastHeartRateAt.isNullOrBlank() -> "심박 수신 $lastHeartRateAt"
+    !lastHcCheckedAt.isNullOrBlank() -> "조회 $lastHcCheckedAt · 심박 대기"
+    !lastServerSync.isNullOrBlank() -> "서버 전송 $lastServerSync"
+    else -> "수신 대기 중"
+}
 
 /** Figma 157:350 — 보건소 연계 배너 */
 @Composable
