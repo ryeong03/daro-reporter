@@ -23,11 +23,11 @@ private val configs = mapOf(
     ),
     "stage1_hr_high" to DetectionStyle(
         label = "심박 상승",
-        color = HeroColors.Warning,
-        cardBackground = HeroColors.WarningBg,
-        heartColor = HeroColors.Warning,
-        greeting = "상태를 확인하고 있어요.",
-        statusMessage = "심박수가 평소보다 높습니다.",
+        color = HeroColors.AiCallOrange,
+        cardBackground = HeroColors.AiCallBg,
+        heartColor = HeroColors.AiCallOrange,
+        greeting = "심박수가 높아요. 잠시 휴식하세요.",
+        statusMessage = "휴식이 필요한 상태입니다.",
     ),
     "stage2_waiting_inactive" to DetectionStyle(
         label = "관찰 중",
@@ -57,6 +57,15 @@ private val configs = mapOf(
 
 fun detectionStyle(state: String): DetectionStyle =
     configs[state] ?: configs.getValue("normal")
+
+fun disconnectedStyle(): DetectionStyle = DetectionStyle(
+    label = "미연결",
+    color = HeroColors.HeartGray,
+    cardBackground = HeroColors.StatusCardDisconnected,
+    heartColor = HeroColors.HeartGray,
+    greeting = "연결 상태를 확인해주세요.",
+    statusMessage = "연결 상태 확인이 필요합니다.",
+)
 
 fun isEmergencyState(state: String): Boolean =
     state == "observing" || state == "alert"

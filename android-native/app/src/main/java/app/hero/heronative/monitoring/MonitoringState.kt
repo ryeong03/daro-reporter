@@ -12,6 +12,8 @@ data class MonitoringUiState(
     val watchConnected: Boolean = false,
     val gpsActive: Boolean = false,
     val lastSync: String? = null,
+    val aiCallActive: Boolean = false,
+    val healthCenterActive: Boolean = false,
     val location: LocationData? = null,
     val notificationBody: String = "어르신의 안전을 지키고 있습니다"
 )

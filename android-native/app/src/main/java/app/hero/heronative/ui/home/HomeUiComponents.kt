@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.hero.heronative.ui.theme.HeroColors
@@ -76,6 +77,7 @@ fun HomeStatusCard(
             fontWeight = FontWeight.Medium,
             color = HeroColors.TextBody,
             modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
         )
         HeartRateDisplay(
             bpm = heartRate,
@@ -130,7 +132,7 @@ data class ConnectionItem(
     val icon: ImageVector,
     val title: String,
     val connected: Boolean,
-    val onReconnect: (() -> Unit)? = null,
+    val onClick: (() -> Unit)? = null,
 )
 
 @Composable
@@ -158,7 +160,7 @@ fun HomeConnectionCard(
                 icon = item.icon,
                 title = item.title,
                 connected = item.connected,
-                onReconnect = item.onReconnect,
+                onClick = item.onClick,
             )
             if (index < items.lastIndex) {
                 Spacer(Modifier.height(8.dp))
@@ -179,21 +181,21 @@ private fun ConnectionStatusRow(
     icon: ImageVector,
     title: String,
     connected: Boolean,
-    onReconnect: (() -> Unit)?,
+    onClick: (() -> Unit)?,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .then(
-                if (!connected && onReconnect != null) {
+                if (onClick != null) {
                     Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .clickable(onClick = onReconnect)
+                        .clickable(onClick = onClick)
                 } else {
                     Modifier
                 },
             )
-            .padding(vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -228,12 +230,17 @@ private fun StatusBadge(connected: Boolean) {
         connected -> "연결됨"
         else -> "미연결"
     }
-    Text(
-        text = label,
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (connected) HeroColors.PrimaryLight else HeroColors.DangerBg)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+        Text(
+            text = label,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(
+                    when {
+                        connected -> HeroColors.PrimaryLight
+                        else -> HeroColors.DangerBadgeBg
+                    },
+                )
+                .padding(horizontal = 8.dp, vertical = 8.dp),
         fontSize = 14.sp,
         color = HeroColors.TextBody,
     )

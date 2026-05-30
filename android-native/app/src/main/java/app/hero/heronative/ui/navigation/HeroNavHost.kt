@@ -12,6 +12,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import app.hero.heronative.ui.home.HomeScreen
 import app.hero.heronative.ui.onboarding.OnboardingScreen
+import app.hero.heronative.ui.settings.AiCallHistoryScreen
+import app.hero.heronative.ui.settings.GuardianListScreen
+import app.hero.heronative.ui.settings.MonitoringSettingsScreen
 import app.hero.heronative.ui.settings.SettingsScreen
 import app.hero.heronative.viewmodel.UserViewModel
 import app.hero.heronative.viewmodel.UserViewModelFactory
@@ -26,7 +29,6 @@ fun HeroNavHost() {
 
     when (val current = session) {
         null -> {
-            // 로그아웃마다 온보딩 폼·워치 연결 단계를 새로 시작
             key("onboarding") {
                 OnboardingScreen(
                     userViewModel = userViewModel,
@@ -35,7 +37,6 @@ fun HeroNavHost() {
             }
         }
         else -> {
-            // 사용자마다 NavController·홈 권한 플로우를 분리 (화이트 화면 방지)
             key(current.userId) {
                 val navController = rememberNavController()
                 NavHost(navController = navController, startDestination = "home") {
@@ -49,6 +50,26 @@ fun HeroNavHost() {
                         SettingsScreen(
                             session = current,
                             userViewModel = userViewModel,
+                            onBack = { navController.popBackStack() },
+                            onOpenMonitoringSettings = { navController.navigate("monitoring_settings") },
+                            onOpenGuardians = { navController.navigate("guardians") },
+                            onOpenAiCallHistory = { navController.navigate("ai_call_history") },
+                        )
+                    }
+                    composable("monitoring_settings") {
+                        MonitoringSettingsScreen(
+                            session = current,
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable("guardians") {
+                        GuardianListScreen(
+                            session = current,
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable("ai_call_history") {
+                        AiCallHistoryScreen(
                             onBack = { navController.popBackStack() },
                         )
                     }

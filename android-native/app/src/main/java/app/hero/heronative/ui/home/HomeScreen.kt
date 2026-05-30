@@ -4,22 +4,16 @@ import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,9 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.health.connect.client.PermissionController
 import app.hero.heronative.data.UserSession
 import app.hero.heronative.health.HealthConnectManager
+import app.hero.heronative.health.HealthConnectNavigator
 import app.hero.heronative.location.LocationProvider
 import app.hero.heronative.monitoring.DataSyncManager
 import app.hero.heronative.monitoring.LocationTrackerHolder
@@ -47,15 +40,9 @@ import app.hero.heronative.monitoring.MonitoringScheduler
 import app.hero.heronative.monitoring.MonitoringServiceRequirements
 import app.hero.heronative.monitoring.MonitoringStateHolder
 import app.hero.heronative.ui.detectionStyle
+import app.hero.heronative.ui.disconnectedStyle
 import app.hero.heronative.ui.theme.HeroColors
 import kotlinx.coroutines.launch
-
-private enum class HomePermissionStep {
-    Idle,
-    HealthConnect,
-    Location,
-    Ready,
-}
 
 @Composable
 fun HomeScreen(
@@ -65,16 +52,37 @@ fun HomeScreen(
     val context = LocalContext.current
     val appContext = context.applicationContext
     val scope = rememberCoroutineScope()
+    val snack = remember { SnackbarHostState() }
     val healthManager = remember { HealthConnectManager(appContext) }
     val ui by MonitoringStateHolder.state.collectAsState()
-    var permissionStep by remember { mutableStateOf(HomePermissionStep.Idle) }
+    var pendingOpenHealthConnect by remember { mutableStateOf(false) }
+    var showAiCallDialog by remember { mutableStateOf(false) }
+    var showDeviceDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(ui.aiCallActive) {
+        if (ui.aiCallActive) showAiCallDialog = true
+    }
+
+    if (showAiCallDialog && ui.aiCallActive) {
+        AiCallDialog(
+            onConfirm = { showAiCallDialog = false },
+            onDismiss = { showAiCallDialog = false },
+        )
+    }
+
+    if (showDeviceDialog) {
+        DeviceNotConnectedDialog(onConfirm = { showDeviceDialog = false })
+    }
 
     val hcPermissionLauncher = rememberLauncherForActivityResult(
         contract = PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
         val connected = granted.containsAll(healthManager.permissions)
         MonitoringStateHolder.update { it.copy(watchConnected = connected) }
-        permissionStep = if (connected) HomePermissionStep.Location else HomePermissionStep.Ready
+        if (connected && pendingOpenHealthConnect) {
+            pendingOpenHealthConnect = false
+            HealthConnectNavigator.openManageData(context, healthManager)
+        }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -86,46 +94,62 @@ fun HomeScreen(
                 MonitoringForegroundService.start(context)
                 MonitoringScheduler.schedule(context)
             }
+            DataSyncManager(context).syncOnce(session)
         }
-        permissionStep = HomePermissionStep.Ready
     }
 
     LaunchedEffect(session.userId) {
-        permissionStep = HomePermissionStep.Idle
         val hasHc = healthManager.hasAllPermissions()
         MonitoringStateHolder.update { it.copy(watchConnected = hasHc) }
         if (LocationProvider(appContext).hasFineLocation()) {
             LocationTrackerHolder.ensureStarted(context)
             DataSyncManager(context).refreshGpsStatus()
         }
-        permissionStep = if (hasHc) HomePermissionStep.Location else HomePermissionStep.HealthConnect
     }
 
-    LaunchedEffect(permissionStep) {
-        when (permissionStep) {
-            HomePermissionStep.HealthConnect ->
-                hcPermissionLauncher.launch(healthManager.permissions)
-            HomePermissionStep.Location ->
-                permissionLauncher.launch(MonitoringServiceRequirements.monitoringRuntimePermissions())
-            else -> Unit
-        }
-    }
-
-    val stateInfo = detectionStyle(ui.detectionState)
-    val requestHcPermissions: () -> Unit = {
+    val openHealthConnect: () -> Unit = {
+        pendingOpenHealthConnect = true
         scope.launch {
-            if (healthManager.hasAllPermissions()) {
-                MonitoringStateHolder.update { it.copy(watchConnected = true) }
-            } else {
-                hcPermissionLauncher.launch(healthManager.permissions)
-            }
+            HealthConnectNavigator.openSettingsOrRequestPermissions(
+                context = context,
+                healthManager = healthManager,
+                permissionLauncher = hcPermissionLauncher,
+                onUnavailable = {
+                    pendingOpenHealthConnect = false
+                    scope.launch { snack.showSnackbar("Health Connect 앱을 설치해주세요") }
+                },
+            )
         }
     }
-    val requestLocationPermissions: () -> Unit = {
+
+    val openLocationFlow: () -> Unit = {
         if (MonitoringServiceRequirements.hasLocationAccess(context)) {
-            scope.launch { startGpsTracking(context) }
+            scope.launch {
+                startGpsTracking(context)
+                DataSyncManager(context).syncOnce(session)
+            }
         } else {
-            permissionStep = HomePermissionStep.Location
+            permissionLauncher.launch(MonitoringServiceRequirements.monitoringRuntimePermissions())
+        }
+    }
+
+    val healthAppConnected = ui.watchConnected
+    val deviceConnected = ui.watchConnected && ui.heartRate > 0
+    val lteConnected = ui.gpsActive && ui.lastSync != null
+    val isDisconnected = !deviceConnected && ui.heartRate <= 0
+    val stateInfo = if (isDisconnected && ui.detectionState == "normal") {
+        disconnectedStyle()
+    } else {
+        detectionStyle(ui.detectionState)
+    }
+    val showAiBanner = ui.aiCallActive
+    val showHealthCenterBanner = ui.healthCenterActive
+
+    val openDeviceFlow: () -> Unit = {
+        if (!deviceConnected) {
+            showDeviceDialog = true
+        } else {
+            openHealthConnect()
         }
     }
 
@@ -134,72 +158,68 @@ fun HomeScreen(
             .fillMaxSize()
             .background(HeroColors.Background)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 24.dp)
+            .padding(top = 65.dp, bottom = 24.dp),
     ) {
-        Spacer(Modifier.height(48.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column {
-                Text(
-                    text = "${session.userName}님",
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = HeroColors.TextPrimary,
-                )
-                Text(
-                    text = stateInfo.greeting,
-                    fontSize = 15.sp,
-                    color = HeroColors.TextSecondary,
-                )
-            }
-            IconButton(
-                onClick = onOpenSettings,
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(HeroColors.Surface),
-            ) {
-                Icon(Icons.Default.Settings, contentDescription = "설정")
-            }
+        if (showHealthCenterBanner) {
+            HealthCenterBanner()
+            Spacer(Modifier.height(24.dp))
+        } else if (showAiBanner) {
+            AiCallBanner()
+            Spacer(Modifier.height(24.dp))
         }
-        Spacer(Modifier.height(24.dp))
+
+        Column(
+            modifier = Modifier
+                .clickable(onClick = onOpenSettings)
+                .padding(bottom = 24.dp),
+        ) {
+            Text(
+                text = "${session.userName} 님",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = HeroColors.TextPrimary,
+            )
+            Text(
+                text = stateInfo.greeting,
+                fontSize = 14.sp,
+                color = HeroColors.TextPrimary,
+            )
+        }
 
         HomeStatusCard(
             statusMessage = stateInfo.statusMessage,
             heartRate = ui.heartRate,
             heartColor = stateInfo.heartColor,
             cardBackground = stateInfo.cardBackground,
-            lastUpdatedLabel = ui.lastSync ?: "--:--",
+            lastUpdatedLabel = formatLastUpdated(ui.lastSync),
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(24.dp))
 
         HomeConnectionCard(
             items = listOf(
                 ConnectionItem(
                     icon = HomeConnectionIcons.Device,
-                    title = "기기",
-                    connected = ui.watchConnected && ui.heartRate > 0,
-                    onReconnect = requestHcPermissions,
+                    title = "기기 연결",
+                    connected = deviceConnected,
+                    onClick = openDeviceFlow,
                 ),
                 ConnectionItem(
                     icon = HomeConnectionIcons.HealthApp,
-                    title = "헬스 앱",
-                    connected = ui.watchConnected,
-                    onReconnect = requestHcPermissions,
+                    title = "헬스 앱 연결",
+                    connected = healthAppConnected,
+                    onClick = openHealthConnect,
                 ),
                 ConnectionItem(
                     icon = HomeConnectionIcons.Lte,
-                    title = "LTE",
-                    connected = ui.lastSync != null,
-                    onReconnect = requestLocationPermissions,
+                    title = "LTE 통신",
+                    connected = lteConnected,
+                    onClick = openLocationFlow,
                 ),
             ),
         )
-        Spacer(Modifier.height(32.dp))
+        SnackbarHost(hostState = snack)
     }
 }
 

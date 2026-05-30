@@ -20,17 +20,29 @@ class UserRepository(
         birthDate: String?,
         guardians: List<Guardian>
     ): Result<UserSession> {
-        val trimmedPhone = phone.trim()
+        val normalizedPhone = normalizePhone(phone)
+        if (!isValidPhone(normalizedPhone)) {
+            return Result.failure(IllegalArgumentException("전화번호는 10자리 이상이어야 합니다"))
+        }
+        val normalizedGuardians = guardians
+            .map { g ->
+                Guardian(
+                    name = g.name.trim(),
+                    phone = normalizePhone(g.phone),
+                    relation = g.relation?.trim()?.takeIf { it.isNotBlank() },
+                )
+            }
+            .filter { it.name.isNotBlank() && isValidPhone(it.phone) }
         val deviceId = "hero-${System.currentTimeMillis()}"
         return try {
             val res = api.register(
                 RegisterRequest(
                     name = name.trim(),
-                    phone = trimmedPhone,
+                    phone = normalizedPhone,
                     deviceId = deviceId,
-                    gender = gender,
-                    birthDate = birthDate?.takeIf { it.isNotBlank() },
-                    guardians = guardians.filter { it.name.isNotBlank() && it.phone.isNotBlank() }
+                    gender = gender?.takeIf { it == "male" || it == "female" },
+                    birthDate = birthDate?.trim()?.takeIf { it.isNotBlank() },
+                    guardians = normalizedGuardians,
                 )
             )
             val session = toSession(res.user, deviceId)
@@ -39,7 +51,7 @@ class UserRepository(
         } catch (e: HttpException) {
             if (e.code() == 409) {
                 try {
-                    Result.success(resumeByPhone(trimmedPhone))
+                    Result.success(resumeByPhone(normalizedPhone))
                 } catch (inner: Exception) {
                     Result.failure(inner)
                 }
@@ -61,6 +73,10 @@ class UserRepository(
 
     suspend fun clearSession() {
         store.clear()
+    }
+
+    suspend fun fetchUserDetail(userId: String): Result<UserDetailResponse> = runCatching {
+        api.getUser(userId)
     }
 
     private suspend fun persist(session: UserSession) {

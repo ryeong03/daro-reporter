@@ -97,7 +97,9 @@ class DataSyncManager(
                     gpsActive = true,
                     location = location,
                     lastSync = timeFormatter.format(Instant.now()),
-                    notificationBody = body
+                    notificationBody = body,
+                    aiCallActive = response.detection.triggered,
+                    healthCenterActive = response.detection.state == "alert",
                 )
             }
             MonitoringForegroundService.updateNotification(appContext, body)
