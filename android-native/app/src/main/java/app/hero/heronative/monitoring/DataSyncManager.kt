@@ -168,7 +168,11 @@ class DataSyncManager(
     }
 
     companion object {
+        /** HC → UI 심박 표시 */
         const val HEART_RATE_POLL_INTERVAL_MS = 1_000L
+
+        /** HC → 서버 감지(5분·2분 타이머). 10분이면 1단계 지속 놓칠 수 있음 */
+        const val HEALTH_SYNC_INTERVAL_MS = 2 * 60 * 1000L
     }
 
     /** Health Connect 권한 상태만 UI에 반영한다 */

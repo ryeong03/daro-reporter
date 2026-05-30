@@ -7,7 +7,8 @@ import { getDeviceId, getUserId } from '../storage/userStorage';
 import type { HealthDataRequest, AlertRequest } from '../api/types';
 
 const OFFLINE_QUEUE_KEY = '@hero_offline_queue';
-const SYNC_INTERVAL_MS = 10 * 60 * 1000;
+/** 서버 감지(5분·2분 타이머) — 10분이면 1단계 지속을 놓칠 수 있음 */
+const SYNC_INTERVAL_MS = 2 * 60 * 1000;
 
 let syncTimer: ReturnType<typeof setInterval> | null = null;
 let onStateChange: ((state: string, heartRate: number, steps: number) => void) | null = null;

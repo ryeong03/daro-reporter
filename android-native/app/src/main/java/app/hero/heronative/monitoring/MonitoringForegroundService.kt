@@ -53,7 +53,7 @@ class MonitoringForegroundService : Service() {
             LocationTrackerHolder.start(scope, app.hero.heronative.location.LocationProvider(applicationContext))
             dataSync.syncOnce(session)
             while (isActive) {
-                delay(SYNC_INTERVAL_MS)
+                delay(DataSyncManager.HEALTH_SYNC_INTERVAL_MS)
                 val current = UserStore(applicationContext).getSessionOnce() ?: break
                 dataSync.syncOnce(current)
             }
@@ -127,8 +127,6 @@ class MonitoringForegroundService : Service() {
         private const val CHANNEL_ID = "hero-monitoring"
         private const val NOTIFICATION_ID = 1001
         private const val EXTRA_BODY = "body"
-        private const val SYNC_INTERVAL_MS = 10 * 60 * 1000L
-
         private const val TAG = "MonitoringFgService"
 
         fun start(context: Context) {

@@ -150,26 +150,33 @@ fun HomeScreen(
     val dataSync = remember { DataSyncManager(context) }
 
     LaunchedEffect(session.userId) {
+        var tick = 0
         while (true) {
             dataSync.pollHeartRate()
-            delay(DataSyncManager.HEART_RATE_POLL_INTERVAL_MS)
-        }
-    }
-
-    LaunchedEffect(session.userId) {
-        while (true) {
-            val snapshot = ConnectionStatusRefresher.refresh(context, healthManager)
-            deviceHasHeartRate = snapshot.hasHeartRate
-            watchDeviceConnected = snapshot.deviceConnected
-            if (snapshot.bluetoothWatchBonded && !snapshot.hasHeartRate && !hrGuidePrompted) {
-                showHrGuide = true
-                hrGuidePrompted = true
+            if (tick % 2 == 0) {
+                val snapshot = ConnectionStatusRefresher.refresh(context, healthManager)
+                deviceHasHeartRate = snapshot.hasHeartRate
+                watchDeviceConnected = snapshot.deviceConnected
+                if (snapshot.bluetoothWatchBonded && !snapshot.hasHeartRate && !hrGuidePrompted) {
+                    showHrGuide = true
+                    hrGuidePrompted = true
+                }
             }
-            if (LocationProvider(appContext).hasFineLocation()) {
+            if (tick % (DataSyncManager.HEALTH_SYNC_INTERVAL_MS / DataSyncManager.HEART_RATE_POLL_INTERVAL_MS).toInt() == 0 &&
+                healthManager.isAvailable
+            ) {
+                runCatching {
+                    if (healthManager.hasAllPermissions()) {
+                        dataSync.syncOnce(session)
+                    }
+                }
+            }
+            if (tick % 2 == 0 && LocationProvider(appContext).hasFineLocation()) {
                 LocationTrackerHolder.ensureStarted(context)
                 dataSync.refreshGpsStatus()
             }
-            delay(2_000)
+            tick++
+            delay(DataSyncManager.HEART_RATE_POLL_INTERVAL_MS)
         }
     }
 
