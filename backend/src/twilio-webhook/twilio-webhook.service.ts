@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../database/supabase.service';
-import { TriggerService } from '../ai-call/trigger.service';
+import { CallContext, CallPhase, TriggerService } from '../ai-call/trigger.service';
 import { TwilioCallService } from '../ai-call/twilio-call.service';
 import { SttService } from '../ai-call/stt.service';
 import { ClassifyService, Classification } from '../ai-call/classify.service';
@@ -9,7 +9,9 @@ import { EmergencyService } from '../notify/emergency.service';
 import { StateMachineService } from '../state/state-machine.service';
 
 const MAX_ATTEMPTS = 2;
+const MAX_CONFIRM_ATTEMPTS = 2;
 const RETRY_DELAY_MS = 30_000;
+const CONFIRM_CALL_DELAY_MS = 8_000;
 
 @Injectable()
 export class TwilioWebhookService {
@@ -38,7 +40,30 @@ export class TwilioWebhookService {
       .replace(/>/g, '&gt;');
   }
 
-  async generateVoiceResponse(userId: string, eventType = 'syncope'): Promise<string> {
+  private escapeXmlText(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  private buildRecordingAction(
+    userId: string,
+    eventType: string,
+    phase: CallPhase,
+    heardText?: string,
+  ): string {
+    const params = new URLSearchParams({ userId, eventType, phase });
+    if (heardText) params.set('heardText', heardText.slice(0, 80));
+    return this.escapeXmlAttr(`${this.baseUrl}/twilio/recording?${params.toString()}`);
+  }
+
+  async generateVoiceResponse(
+    userId: string,
+    eventType = 'syncope',
+    phase: CallPhase = 'initial',
+    heardText?: string,
+  ): Promise<string> {
     let userName = '어르신';
 
     if (userId) {
@@ -54,9 +79,20 @@ export class TwilioWebhookService {
       }
     }
 
-    const recordingAction = this.escapeXmlAttr(
-      `${this.baseUrl}/twilio/recording?userId=${userId}&eventType=${eventType}`,
-    );
+    const recordingAction = this.buildRecordingAction(userId, eventType, phase, heardText);
+
+    if (phase === 'confirm') {
+      const safeHeard = heardText?.trim();
+      const confirmPrompt = safeHeard
+        ? `${userName}님, ${this.escapeXmlText(safeHeard)}라고 하신 거 맞으신가요? 괜찮으시면 네, 도움이 필요하시면 아니요라고 말씀해 주세요.`
+        : `${userName}님, 잘 못 들었습니다. 지금 괜찮으시면 네, 도움이 필요하시면 아니요라고 말씀해 주세요.`;
+
+      return `<?xml version="1.0" encoding="UTF-8"?>
+      <Response>
+        <Say language="ko-KR">${confirmPrompt}</Say>
+        <Record maxLength="15" playBeep="false" action="${recordingAction}" />
+      </Response>`;
+    }
 
     return `<?xml version="1.0" encoding="UTF-8"?>
       <Response>
@@ -67,7 +103,9 @@ export class TwilioWebhookService {
 
   async handleVoiceStatus(callSid: string, callStatus: string): Promise<void> {
     const ctx = this.triggerService.getCallContext(callSid);
-    this.logger.log(`Call ${callSid}: ${callStatus} (attempt ${ctx?.attempt ?? '?'})`);
+    this.logger.log(
+      `Call ${callSid}: ${callStatus} (phase ${ctx?.phase ?? '?'}, attempt ${ctx?.attempt ?? '?'})`,
+    );
 
     if (!ctx) return;
 
@@ -86,9 +124,21 @@ export class TwilioWebhookService {
         attempt: ctx.attempt,
         twilio_call_sid: callSid,
         classification: 'no_answer',
+        claude_reasoning: ctx.phase === 'confirm' ? 'confirm_no_answer' : 'initial_no_answer',
       });
 
-      if (ctx.attempt < MAX_ATTEMPTS) {
+      if (ctx.phase === 'confirm') {
+        if (ctx.confirmAttempt < MAX_CONFIRM_ATTEMPTS) {
+          this.logger.log(`Confirm call no-answer — retry confirm #${ctx.confirmAttempt + 1}`);
+          this.scheduleConfirmationCall(ctx, ctx.heardText, CONFIRM_CALL_DELAY_MS, ctx.confirmAttempt + 1);
+        } else {
+          this.logger.log('Confirm call unanswered — escalating to emergency');
+          await this.emergencyService.notifyEmergency(
+            ctx.userId, ctx.eventType, 'confirm_no_answer', ctx.alertId,
+          );
+          this.stateMachine.resolveAlert(ctx.userId);
+        }
+      } else if (ctx.attempt < MAX_ATTEMPTS) {
         this.logger.log(`Scheduling retry #${ctx.attempt + 1} in ${RETRY_DELAY_MS / 1000}s`);
         setTimeout(async () => {
           try {
@@ -100,7 +150,9 @@ export class TwilioWebhookService {
             const newSid = await this.twilioCallService.makeCall(
               userData!.phone, ctx.userId, ctx.eventType,
             );
-            this.triggerService.registerCallContext(newSid, ctx.userId, ctx.eventType, ctx.alertId, ctx.attempt + 1);
+            this.triggerService.registerCallContext(
+              newSid, ctx.userId, ctx.eventType, ctx.alertId, ctx.attempt + 1, 'initial', undefined, 1,
+            );
           } catch (err) {
             this.logger.error('Retry call failed', err);
             await this.emergencyService.notifyEmergency(
@@ -131,12 +183,14 @@ export class TwilioWebhookService {
     recordingSid: string,
     userId?: string,
     eventType?: string,
+    phase: CallPhase = 'initial',
+    heardText?: string,
   ): Promise<string> {
     let ctx = this.triggerService.getCallContext(callSid);
     if (!ctx && userId) {
-      ctx = await this.recoverCallContext(callSid, userId, eventType);
+      ctx = await this.recoverCallContext(callSid, userId, eventType, phase, heardText);
     }
-    this.logger.log(`Recording ready: ${recordingSid} for call ${callSid}`);
+    this.logger.log(`Recording ready (${phase}): ${recordingSid} for call ${callSid}`);
 
     if (!ctx) {
       this.logger.warn(`No context for CallSid ${callSid}, skipping pipeline`);
@@ -145,9 +199,13 @@ export class TwilioWebhookService {
 
     void this.runRecordingPipeline(callSid, recordingUrl, recordingSid, ctx);
 
+    const closingMessage = ctx.phase === 'confirm'
+      ? '확인했습니다. 잠시만 기다려 주세요.'
+      : '답변 확인했습니다. 잠시만 기다려 주세요.';
+
     return `
       <Response>
-        <Say language="ko-KR">답변 확인했습니다. 잠시만 기다려 주세요.</Say>
+        <Say language="ko-KR">${closingMessage}</Say>
         <Hangup/>
       </Response>`;
   }
@@ -156,26 +214,29 @@ export class TwilioWebhookService {
     callSid: string,
     recordingUrl: string,
     recordingSid: string,
-    ctx: { userId: string; eventType: 'heatstroke' | 'syncope'; alertId: number | null; attempt: number },
+    ctx: CallContext,
   ): Promise<void> {
     try {
       const sttResult = await this.sttService.transcribe(recordingUrl);
-      this.logger.log(`STT result: "${sttResult.text}" (confidence: ${sttResult.confidence})`);
+      this.logger.log(`STT result (${ctx.phase}): "${sttResult.text}" (confidence: ${sttResult.confidence})`);
 
-      const classifyResult = await this.classifyService.classifyResponse(sttResult.text);
-      this.logger.log(`Classification: ${classifyResult.classification} — ${classifyResult.reasoning}`);
+      const classifyResult = ctx.phase === 'confirm'
+        ? await this.classifyService.classifyConfirmation(sttResult.text, ctx.heardText)
+        : await this.classifyService.classifyResponse(sttResult.text);
+
+      this.logger.log(`Classification (${ctx.phase}): ${classifyResult.classification} — ${classifyResult.reasoning}`);
 
       await this.supabaseService.db.from('call_logs').insert({
         alert_id: ctx.alertId,
-        attempt: ctx.attempt,
+        attempt: ctx.phase === 'confirm' ? ctx.confirmAttempt : ctx.attempt,
         twilio_call_sid: callSid,
         recording_url: recordingUrl,
         stt_text: sttResult.text,
         classification: classifyResult.classification,
-        claude_reasoning: classifyResult.reasoning,
+        claude_reasoning: `[${ctx.phase}] ${classifyResult.reasoning}`,
       });
 
-      await this.applyClassification(classifyResult.classification, ctx, callSid);
+      await this.applyClassification(classifyResult.classification, ctx, callSid, sttResult.text);
     } catch (err) {
       this.logger.error('Error in recording pipeline', err);
       await this.emergencyService.notifyEmergency(
@@ -188,27 +249,57 @@ export class TwilioWebhookService {
 
   private async applyClassification(
     classification: Classification,
-    ctx: { userId: string; eventType: 'heatstroke' | 'syncope'; alertId: number | null; attempt: number },
+    ctx: CallContext,
     callSid: string,
+    sttText: string,
   ): Promise<void> {
     const db = this.supabaseService.db;
 
+    if (ctx.phase === 'confirm') {
+      switch (classification) {
+        case 'safe': {
+          this.logger.log('Confirm safe — closing alert');
+          await this.closeAllActiveAlertsSafe(ctx.userId);
+          this.stateMachine.resolveAlert(ctx.userId);
+          this.triggerService.removeCallContext(callSid);
+          return;
+        }
+        case 'emergency': {
+          this.logger.log('Confirm emergency — notifying all channels');
+          await this.emergencyService.notifyEmergency(
+            ctx.userId, ctx.eventType, 'emergency_confirmed_on_recheck', ctx.alertId,
+          );
+          this.stateMachine.resolveAlert(ctx.userId);
+          this.triggerService.removeCallContext(callSid);
+          return;
+        }
+        case 'unclear': {
+          if (ctx.confirmAttempt < MAX_CONFIRM_ATTEMPTS) {
+            this.logger.log(`Confirm unclear — retry confirm #${ctx.confirmAttempt + 1}`);
+            this.scheduleConfirmationCall(ctx, ctx.heardText, CONFIRM_CALL_DELAY_MS, ctx.confirmAttempt + 1);
+          } else {
+            this.logger.log('Confirm unclear after max attempts — escalating to emergency');
+            await this.emergencyService.notifyEmergency(
+              ctx.userId, ctx.eventType, 'confirm_unclear_after_max_attempts', ctx.alertId,
+            );
+            this.stateMachine.resolveAlert(ctx.userId);
+          }
+          this.triggerService.removeCallContext(callSid);
+        }
+      }
+      return;
+    }
+
     switch (classification) {
       case 'safe': {
-        this.logger.log('Safe — closing alert, returning to normal');
-        const resolvedAt = new Date().toISOString();
-        await db
-          .from('alerts')
-          .update({ status: 'closed_safe', resolved_at: resolvedAt })
-          .eq('user_id', ctx.userId)
-          .in('status', ['triggered', 'calling']);
-        this.stateMachine.resolveAlert(ctx.userId);
+        this.logger.log(`Initial safe ("${sttText}") — scheduling confirmation call`);
+        this.scheduleConfirmationCall(ctx, sttText, CONFIRM_CALL_DELAY_MS, 1);
         this.triggerService.removeCallContext(callSid);
         return;
       }
 
       case 'emergency': {
-        this.logger.log('Emergency — notifying all channels');
+        this.logger.log('Emergency — notifying all channels immediately');
         await this.emergencyService.notifyEmergency(
           ctx.userId, ctx.eventType, 'emergency_confirmed_by_call', ctx.alertId,
         );
@@ -218,46 +309,75 @@ export class TwilioWebhookService {
       }
 
       case 'unclear': {
-        if (ctx.attempt < MAX_ATTEMPTS) {
-          this.logger.log(`Unclear — scheduling retry call #${ctx.attempt + 1}`);
-          setTimeout(async () => {
-            try {
-              const { data: userData } = await db
-                .from('users')
-                .select('phone')
-                .eq('id', ctx.userId)
-                .single();
-              const newSid = await this.twilioCallService.makeCall(
-                userData!.phone, ctx.userId, ctx.eventType,
-              );
-              this.triggerService.registerCallContext(
-                newSid, ctx.userId, ctx.eventType, ctx.alertId, ctx.attempt + 1,
-              );
-            } catch (err) {
-              this.logger.error('Unclear retry call failed', err);
-              await this.emergencyService.notifyEmergency(
-                ctx.userId, ctx.eventType, 'unclear_after_max_attempts', ctx.alertId,
-              );
-              this.stateMachine.resolveAlert(ctx.userId);
-            }
-          }, RETRY_DELAY_MS);
-        } else {
-          this.logger.log('Unclear after max attempts — escalating to emergency');
-          await this.emergencyService.notifyEmergency(
-            ctx.userId, ctx.eventType, 'unclear_after_max_attempts', ctx.alertId,
-          );
-          this.stateMachine.resolveAlert(ctx.userId);
-        }
+        this.logger.log('Initial unclear — scheduling confirmation call');
+        this.scheduleConfirmationCall(ctx, undefined, CONFIRM_CALL_DELAY_MS, 1);
         this.triggerService.removeCallContext(callSid);
       }
     }
+  }
+
+  private scheduleConfirmationCall(
+    ctx: CallContext,
+    heardText: string | undefined,
+    delayMs: number,
+    confirmAttempt: number,
+  ): void {
+    this.logger.log(
+      `Scheduling confirm call #${confirmAttempt} in ${delayMs / 1000}s` +
+      (heardText ? ` (heard: "${heardText}")` : ' (unclear initial)'),
+    );
+
+    setTimeout(async () => {
+      const db = this.supabaseService.db;
+      try {
+        const { data: userData } = await db
+          .from('users')
+          .select('phone')
+          .eq('id', ctx.userId)
+          .single();
+
+        const newSid = await this.twilioCallService.makeCall(
+          userData!.phone,
+          ctx.userId,
+          ctx.eventType,
+          { phase: 'confirm', heardText },
+        );
+
+        this.triggerService.registerCallContext(
+          newSid,
+          ctx.userId,
+          ctx.eventType,
+          ctx.alertId,
+          ctx.attempt,
+          'confirm',
+          heardText,
+          confirmAttempt,
+        );
+      } catch (err) {
+        this.logger.error('Confirmation call failed', err);
+        await this.emergencyService.notifyEmergency(
+          ctx.userId, ctx.eventType, 'confirm_call_failed', ctx.alertId,
+        );
+        this.stateMachine.resolveAlert(ctx.userId);
+      }
+    }, delayMs);
+  }
+
+  private async closeAllActiveAlertsSafe(userId: string): Promise<void> {
+    await this.supabaseService.db
+      .from('alerts')
+      .update({ status: 'closed_safe', resolved_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .in('status', ['triggered', 'calling']);
   }
 
   private async recoverCallContext(
     callSid: string,
     userId: string,
     eventType?: string,
-  ): Promise<{ userId: string; eventType: 'heatstroke' | 'syncope'; alertId: number | null; attempt: number } | undefined> {
+    phase: CallPhase = 'initial',
+    heardText?: string,
+  ): Promise<CallContext | undefined> {
     const db = this.supabaseService.db;
     const resolvedEventType = eventType === 'heatstroke' ? 'heatstroke' : 'syncope';
 
@@ -270,8 +390,19 @@ export class TwilioWebhookService {
       .limit(1)
       .maybeSingle();
 
-    this.logger.log(`Recovered call context for ${callSid} (user ${userId})`);
-    this.triggerService.registerCallContext(callSid, userId, resolvedEventType, alert?.id ?? null, 1);
-    return { userId, eventType: resolvedEventType, alertId: alert?.id ?? null, attempt: 1 };
+    this.logger.log(`Recovered call context for ${callSid} (user ${userId}, phase ${phase})`);
+    const ctx: CallContext = {
+      userId,
+      eventType: resolvedEventType,
+      alertId: alert?.id ?? null,
+      attempt: 1,
+      phase,
+      heardText,
+      confirmAttempt: 1,
+    };
+    this.triggerService.registerCallContext(
+      callSid, userId, resolvedEventType, alert?.id ?? null, 1, phase, heardText, 1,
+    );
+    return ctx;
   }
 }

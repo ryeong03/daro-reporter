@@ -3,16 +3,23 @@ import { SupabaseService } from '../database/supabase.service';
 import { TwilioCallService } from './twilio-call.service';
 import { EmergencyService } from '../notify/emergency.service';
 
+export type CallPhase = 'initial' | 'confirm';
+
+export interface CallContext {
+  userId: string;
+  eventType: 'heatstroke' | 'syncope';
+  alertId: number | null;
+  attempt: number;
+  phase: CallPhase;
+  heardText?: string;
+  confirmAttempt: number;
+}
+
 @Injectable()
 export class TriggerService {
   private readonly logger = new Logger(TriggerService.name);
 
-  private readonly callContextMap = new Map<string, {
-    userId: string;
-    eventType: 'heatstroke' | 'syncope';
-    alertId: number | null;
-    attempt: number;
-  }>();
+  private readonly callContextMap = new Map<string, CallContext>();
 
   constructor(
     private supabaseService: SupabaseService,
@@ -30,8 +37,13 @@ export class TriggerService {
     eventType: 'heatstroke' | 'syncope',
     alertId: number | null,
     attempt: number = 1,
+    phase: CallPhase = 'initial',
+    heardText?: string,
+    confirmAttempt: number = 1,
   ): void {
-    this.callContextMap.set(callSid, { userId, eventType, alertId, attempt });
+    this.callContextMap.set(callSid, {
+      userId, eventType, alertId, attempt, phase, heardText, confirmAttempt,
+    });
   }
 
   removeCallContext(callSid: string): void {

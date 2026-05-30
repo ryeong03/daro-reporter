@@ -55,6 +55,16 @@ const SYSTEM_PROMPT = `당신은 노인의 응급 상황 여부를 판단하는 
 ## 반환값
 출력은 반드시 JSON만 반환: {"classification": "safe|emergency|unclear", "reasoning": "판단 근거"}`;
 
+const CONFIRM_SYSTEM_PROMPT = `당신은 AI 안전 확인 전화의 재확인 단계를 처리합니다.
+어르신에게 "괜찮으시면 네, 도움이 필요하면 아니요"라고 물었고, Clova STT 결과를 분석하세요.
+구어체, ~, 반복, STT 오타를 허용합니다.
+
+- safe: 안전함을 확인하는 응답 (네, 네네, 응, 맞아, 맞아요, 괜찮아, 괜찮아요, 괜찮혀, 예, 그래, 맞습니다)
+- emergency: 도움이 필요함을 확인하는 응답 (아니, 아니요, 아냐, 도와줘, 아파, 아파요, 안 괜찮아, 필요해)
+- unclear: 위 둘으로 판단 불가 (뭐라고, 누구야, 단음절만, 무응답, 엉뚱한 답)
+
+출력은 반드시 JSON만 반환: {"classification": "safe|emergency|unclear", "reasoning": "판단 근거"}`;
+
 @Injectable()
 export class ClassifyService {
   private readonly logger = new Logger(ClassifyService.name);
@@ -94,5 +104,43 @@ export class ClassifyService {
     }
 
     return { classification: 'unclear', reasoning: 'Claude 응답 파싱 실패' };
+  }
+
+  async classifyConfirmation(sttText: string, heardText?: string): Promise<ClassifyResult> {
+    if (!sttText || sttText.trim().length === 0) {
+      return { classification: 'unclear', reasoning: '재확인 응답 없음 (빈 텍스트)' };
+    }
+
+    const client = new Anthropic({ apiKey: this.config.get<string>('ANTHROPIC_API_KEY')! });
+    const prior = heardText
+      ? `처음 들은 내용: "${heardText}"\n재확인 질문: "괜찮다고 하신 거 맞으신가요? 괜찮으시면 네, 도움이 필요하시면 아니요"`
+      : `재확인 질문: "잘 못 들었습니다. 괜찮으시면 네, 도움이 필요하시면 아니요"`;
+
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 200,
+      system: CONFIRM_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: 'user',
+          content: `${prior}\nClova STT 재확인 응답: "${sttText}"`,
+        },
+      ],
+    });
+
+    try {
+      const content = message.content[0];
+      if (content.type === 'text') {
+        const result = JSON.parse(content.text);
+        return {
+          classification: result.classification as Classification,
+          reasoning: result.reasoning,
+        };
+      }
+    } catch {
+      this.logger.error('Failed to parse Claude confirmation response');
+    }
+
+    return { classification: 'unclear', reasoning: 'Claude 재확인 응답 파싱 실패' };
   }
 }

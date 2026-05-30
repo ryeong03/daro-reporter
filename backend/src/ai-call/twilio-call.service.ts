@@ -41,15 +41,25 @@ export class TwilioCallService {
     }
   }
 
-  async makeCall(toPhone: string, userId: string, eventType: string): Promise<string> {
+  async makeCall(
+    toPhone: string,
+    userId: string,
+    eventType: string,
+    options?: { phase?: 'initial' | 'confirm'; heardText?: string },
+  ): Promise<string> {
     const client = this.getClient();
     const baseUrl = this.config.get<string>('BASE_URL') || 'https://your-server.ngrok.io';
     const to = this.toE164(toPhone);
+    const phase = options?.phase ?? 'initial';
+    const params = new URLSearchParams({ userId, eventType, phase });
+    if (options?.heardText) {
+      params.set('heardText', options.heardText.slice(0, 80));
+    }
 
     const call = await client.calls.create({
       to,
       from: this.config.get<string>('TWILIO_PHONE_NUMBER')!.replace(/\s/g, ''),
-      url: `${baseUrl}/twilio/voice-response?userId=${userId}&eventType=${eventType}`,
+      url: `${baseUrl}/twilio/voice-response?${params.toString()}`,
       method: 'GET',
       statusCallback: `${baseUrl}/twilio/voice-status`,
       statusCallbackMethod: 'POST',

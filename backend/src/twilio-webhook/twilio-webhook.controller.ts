@@ -11,9 +11,13 @@ export class TwilioWebhookController {
   async voiceResponse(
     @Query('userId') userId: string,
     @Query('eventType') eventType: string,
+    @Query('phase') phase: string,
+    @Query('heardText') heardText: string,
     @Res() res: Response,
   ) {
-    const twiml = await this.webhookService.generateVoiceResponse(userId, eventType);
+    const twiml = await this.webhookService.generateVoiceResponse(
+      userId, eventType, phase === 'confirm' ? 'confirm' : 'initial', heardText,
+    );
     res.type('text/xml');
     res.send(twiml);
   }
@@ -29,6 +33,8 @@ export class TwilioWebhookController {
     @Body() body: any,
     @Query('userId') userId: string,
     @Query('eventType') eventType: string,
+    @Query('phase') phase: string,
+    @Query('heardText') heardText: string,
     @Res() res: Response,
   ) {
     const twiml = await this.webhookService.handleRecording(
@@ -37,6 +43,8 @@ export class TwilioWebhookController {
       body.RecordingSid,
       userId,
       eventType,
+      phase === 'confirm' ? 'confirm' : 'initial',
+      heardText,
     );
     res.type('text/xml');
     res.send(twiml);
