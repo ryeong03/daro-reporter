@@ -156,7 +156,8 @@ fun HomeScreen(
                 showHrGuide = true
                 hrGuidePrompted = true
             }
-            if (snapshot.hasHeartRate) {
+            // BT 연결만으로는 BPM 없음 — HC 권한 있으면 항상 읽기 시도
+            if (snapshot.healthAppConnected) {
                 DataSyncManager(context).pollHeartRate()
             }
             if (LocationProvider(appContext).hasFineLocation()) {
@@ -192,9 +193,13 @@ fun HomeScreen(
 
     val openDeviceFlow: () -> Unit = {
         when {
-            ui.bluetoothWatchBonded && !deviceHasHeartRate -> showHrGuide = true
             !deviceConnected -> showDeviceDialog = true
-            else -> openHealthConnect()
+            !deviceHasHeartRate -> showHrGuide = true
+            else -> {
+                if (!SamsungHealthNavigator.openDeviceManager(context)) {
+                    scope.launch { snack.showSnackbar("Galaxy Wearable 또는 Samsung Health를 설치해주세요") }
+                }
+            }
         }
     }
 

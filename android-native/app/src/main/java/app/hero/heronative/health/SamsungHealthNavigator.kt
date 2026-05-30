@@ -20,6 +20,10 @@ object SamsungHealthNavigator {
         launchPackage(context, GALAXY_WEARABLE_PACKAGE) ||
             launchPackage(context, "com.samsung.android.wearable")
 
+    /** 워치·밴드 설정 (Galaxy Wearable → 없으면 Samsung Health) */
+    fun openDeviceManager(context: Context): Boolean =
+        openGalaxyWearable(context) || openSamsungHealth(context)
+
     fun openHealthConnectApp(context: Context): Boolean =
         launchPackage(context, HEALTH_CONNECT_PACKAGE)
 

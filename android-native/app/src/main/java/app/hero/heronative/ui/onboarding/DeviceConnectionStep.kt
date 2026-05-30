@@ -68,6 +68,7 @@ data class DeviceConnectionStatus(
 fun DeviceConnectionStep(
     healthManager: HealthConnectManager,
     onOpenHealthConnect: () -> Unit,
+    onOpenDevice: () -> Unit,
     onStart: () -> Unit,
     onDeviceDisconnected: () -> Unit,
     modifier: Modifier = Modifier,
@@ -168,7 +169,7 @@ fun DeviceConnectionStep(
                 icon = Icons.Outlined.Watch,
                 title = "기기 연결",
                 state = status.device,
-                onClick = onOpenHealthConnect,
+                onClick = onOpenDevice,
             )
             Divider()
             DeviceConnectionRow(

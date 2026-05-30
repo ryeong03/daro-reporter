@@ -40,6 +40,7 @@ import app.hero.heronative.data.Guardian
 import app.hero.heronative.data.isValidPhone
 import app.hero.heronative.health.HealthConnectManager
 import app.hero.heronative.health.HealthConnectNavigator
+import app.hero.heronative.health.SamsungHealthNavigator
 import app.hero.heronative.monitoring.MonitoringScheduler
 import app.hero.heronative.ui.components.HeroDashedAddButton
 import app.hero.heronative.ui.components.HeroPrimaryButton
@@ -127,6 +128,11 @@ fun OnboardingScreen(
         5 -> DeviceConnectionStep(
             healthManager = healthManager,
             onOpenHealthConnect = openHealthConnect,
+            onOpenDevice = {
+                if (!SamsungHealthNavigator.openDeviceManager(ctx)) {
+                    scope.launch { snack.showSnackbar("Galaxy Wearable 또는 Samsung Health를 설치해주세요") }
+                }
+            },
             onDeviceDisconnected = { showDeviceDialog = true },
             onStart = {
                 pendingOpenHealthConnect = true
