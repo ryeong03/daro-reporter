@@ -32,7 +32,9 @@ export class TwilioCallService {
       to,
       from: this.config.get<string>('TWILIO_PHONE_NUMBER')!.replace(/\s/g, ''),
       url: `${baseUrl}/twilio/voice-response?userId=${userId}&eventType=${eventType}`,
+      method: 'GET',
       statusCallback: `${baseUrl}/twilio/voice-status`,
+      statusCallbackMethod: 'POST',
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
       timeout: 30,
     });
