@@ -47,7 +47,7 @@ export class TwilioCallService {
     const client = this.getClient();
     const healthCenterPhone = this.config.get<string>('HEALTH_CENTER_PHONE')!;
 
-    const message = `긴급 알림입니다. ${userName}님에게 ${eventType === 'heatstroke' ? '열사병' : '실신'} 의심 상황이 발생했습니다. 위치는 ${location}입니다. 즉시 확인 바랍니다.`;
+    const message = `긴급 알림입니다. ${userName}님에게 낙상 의심 상황이 발생했습니다. 위치는 ${location}입니다. 즉시 확인 바랍니다.`;
 
     const call = await client.calls.create({
       to: healthCenterPhone,

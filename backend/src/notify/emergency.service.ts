@@ -9,6 +9,8 @@ import { GuardianService } from '../guardian/guardian.service';
 
 type EventType = 'heatstroke' | 'syncope' | 'fall';
 
+const HEALTH_CENTER_REASON = '낙상 의심';
+
 const EVENT_LABELS: Record<EventType, string> = {
   heatstroke: '열사병/열탈진 의심',
   syncope: '실신 의심',
@@ -31,7 +33,7 @@ export class EmergencyService {
     private config: ConfigService,
   ) {}
 
-  async notifyEmergency(userId: string, eventType: EventType, reason: string): Promise<void> {
+  async notifyEmergency(userId: string, eventType: EventType, _reason: string): Promise<void> {
     const db = this.supabaseService.db;
 
     const { data: user } = await db
@@ -61,7 +63,7 @@ export class EmergencyService {
     const mapLink = `https://map.kakao.com/link/map/${lat},${lng}`;
 
     const eventLabel = EVENT_LABELS[eventType];
-    const message = `[Hero 긴급] ${user.name}님 ${eventLabel}\n위치: ${locationStr}\n지도: ${mapLink}\n사유: ${reason}\n즉시 확인 필요`;
+    const message = `[Hero 긴급] ${user.name}님 ${eventLabel}\n위치: ${locationStr}\n지도: ${mapLink}\n사유: ${HEALTH_CENTER_REASON}\n즉시 확인 필요`;
 
     const { data: alert } = await db
       .from('alerts')
@@ -82,7 +84,7 @@ export class EmergencyService {
 
     const coreNotifications = Promise.allSettled([
       this.smsService.sendSMS(healthCenterPhone, message),
-      this.slackService.sendAlert(message, { userId, eventType, lat, lng, reason }),
+      this.slackService.sendAlert(message, { userId, eventType, lat, lng, reason: HEALTH_CENTER_REASON }),
       this.twilioCallService.callHealthCenter(user.name, eventType, locationStr),
     ]);
 
