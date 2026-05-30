@@ -30,6 +30,14 @@ export class TwilioWebhookService {
     return this.config.get<string>('BASE_URL') || 'https://daro-reporter-production.up.railway.app';
   }
 
+  private escapeXmlAttr(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
   async generateVoiceResponse(userId: string, eventType = 'syncope'): Promise<string> {
     let userName = '어르신';
 
@@ -46,14 +54,15 @@ export class TwilioWebhookService {
       }
     }
 
-    const recordingAction = `${this.baseUrl}/twilio/recording?userId=${userId}&eventType=${eventType}`;
+    const recordingAction = this.escapeXmlAttr(
+      `${this.baseUrl}/twilio/recording?userId=${userId}&eventType=${eventType}`,
+    );
 
-    return `
+    return `<?xml version="1.0" encoding="UTF-8"?>
       <Response>
         <Say language="ko-KR">${userName}님, 안녕하세요. 농업인 안전 확인 전화입니다. 워치에서 위험 신호가 감지됐어요. 지금 괜찮으시면 괜찮아요, 아프시거나 도움이 필요하시면 아파요 또는 도와줘 라고 말씀해 주세요.</Say>
         <Record maxLength="15" playBeep="false" action="${recordingAction}" />
-      </Response>
-    `;
+      </Response>`;
   }
 
   async handleVoiceStatus(callSid: string, callStatus: string): Promise<void> {
@@ -136,8 +145,7 @@ export class TwilioWebhookService {
       <Response>
         <Say language="ko-KR">답변 확인했습니다. 잠시만 기다려 주세요.</Say>
         <Hangup/>
-      </Response>
-    `;
+      </Response>`;
   }
 
   private async runRecordingPipeline(
