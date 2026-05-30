@@ -60,7 +60,7 @@ export class TwilioWebhookService {
 
     return `<?xml version="1.0" encoding="UTF-8"?>
       <Response>
-        <Say language="ko-KR">${userName}님, 안녕하세요. 농업인 안전 확인 전화입니다. 워치에서 위험 신호가 감지됐어요. 지금 괜찮으시면 괜찮아요, 아프시거나 도움이 필요하시면 아파요 또는 도와줘 라고 말씀해 주세요.</Say>
+        <Say language="ko-KR">${userName}님, 안녕하세요. 농업인 안전 확인 전화입니다. 워치에서 위험 신호가 감지됐어요. 괜찮으시면 괜찮아요, 괜찮아, 괜찮혀처럼 편하게 말씀해 주세요. 도움이 필요하시면 도와줘, 아파요 라고 말씀해 주세요.</Say>
         <Record maxLength="15" playBeep="false" action="${recordingAction}" />
       </Response>`;
   }
