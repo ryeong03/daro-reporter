@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../database/supabase.service';
 import { TriggerService } from '../ai-call/trigger.service';
 import { TwilioCallService } from '../ai-call/twilio-call.service';
@@ -15,6 +16,7 @@ export class TwilioWebhookService {
   private readonly logger = new Logger(TwilioWebhookService.name);
 
   constructor(
+    private config: ConfigService,
     private supabaseService: SupabaseService,
     private triggerService: TriggerService,
     private twilioCallService: TwilioCallService,
@@ -23,6 +25,10 @@ export class TwilioWebhookService {
     private emergencyService: EmergencyService,
     private stateMachine: StateMachineService,
   ) {}
+
+  private get baseUrl(): string {
+    return this.config.get<string>('BASE_URL') || 'https://daro-reporter-production.up.railway.app';
+  }
 
   async generateVoiceResponse(userId: string): Promise<string> {
     let userName = '어르신';
@@ -43,9 +49,9 @@ export class TwilioWebhookService {
     return `
       <Response>
         <Say language="ko-KR">${userName}님, 안녕하세요. 농업인 안전 확인 전화입니다. 워치에서 위험 신호가 감지됐어요. 지금 괜찮으시면 괜찮아요, 아프시거나 도움이 필요하시면 아파요 또는 도와줘 라고 말씀해 주세요.</Say>
-        <Record maxLength="15" playBeep="false" action="/twilio/recording" recordingStatusCallback="/twilio/recording-status" />
+        <Record maxLength="15" playBeep="false" action="${this.baseUrl}/twilio/recording" />
         <Say language="ko-KR">응답이 없어 다시 여쭤봅니다. 지금 괜찮으신가요?</Say>
-        <Record maxLength="15" playBeep="false" action="/twilio/recording" recordingStatusCallback="/twilio/recording-status" />
+        <Record maxLength="15" playBeep="false" action="${this.baseUrl}/twilio/recording" />
       </Response>
     `;
   }
@@ -116,8 +122,7 @@ export class TwilioWebhookService {
     }
 
     try {
-      const recordingUrlWithAuth = `${recordingUrl}.wav`;
-      const sttResult = await this.sttService.transcribe(recordingUrlWithAuth);
+      const sttResult = await this.sttService.transcribe(recordingUrl);
       this.logger.log(`STT result: "${sttResult.text}" (confidence: ${sttResult.confidence})`);
 
       const classifyResult = await this.classifyService.classifyResponse(sttResult.text);
@@ -190,7 +195,7 @@ export class TwilioWebhookService {
           return `
             <Response>
               <Say language="ko-KR">죄송해요, 잘 못 들었어요. 다시 한 번 여쭤보겠습니다. 지금 괜찮으시면 괜찮아요, 도움이 필요하시면 아파요 또는 도와줘 라고 말씀해 주세요.</Say>
-              <Record maxLength="15" playBeep="false" action="/twilio/recording" />
+              <Record maxLength="15" playBeep="false" action="${this.baseUrl}/twilio/recording" />
               <Say language="ko-KR">응답이 확인되지 않아 도움을 요청하겠습니다.</Say>
               <Hangup/>
             </Response>

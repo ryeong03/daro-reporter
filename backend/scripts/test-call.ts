@@ -1,4 +1,5 @@
-import twilio from 'twilio';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const twilio = require('twilio');
 
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID!,

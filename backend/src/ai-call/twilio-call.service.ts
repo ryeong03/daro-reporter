@@ -15,12 +15,21 @@ export class TwilioCallService {
     );
   }
 
+  private toE164(phone: string): string {
+    const digits = phone.replace(/\D/g, '');
+    if (phone.startsWith('+')) return phone;
+    if (digits.startsWith('82')) return `+${digits}`;
+    if (digits.startsWith('010')) return `+82${digits.slice(1)}`;
+    return phone;
+  }
+
   async makeCall(toPhone: string, userId: string, eventType: string): Promise<string> {
     const client = this.getClient();
     const baseUrl = this.config.get<string>('BASE_URL') || 'https://your-server.ngrok.io';
+    const to = this.toE164(toPhone);
 
     const call = await client.calls.create({
-      to: toPhone,
+      to,
       from: this.config.get<string>('TWILIO_PHONE_NUMBER')!,
       url: `${baseUrl}/twilio/voice-response?userId=${userId}&eventType=${eventType}`,
       statusCallback: `${baseUrl}/twilio/voice-status`,
