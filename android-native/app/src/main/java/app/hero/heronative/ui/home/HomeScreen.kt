@@ -80,9 +80,10 @@ fun HomeScreen(
         baselineManager.ensureLegacyMigration()
     }
 
-    if (baseline.pendingCompletionDialog && baseline.lastComputedBaselineBpm != null) {
+    val completedBaselineBpm = baseline.lastComputedBaselineBpm
+    if (baseline.pendingCompletionDialog && completedBaselineBpm != null) {
         BaselineMeasurementCompleteDialog(
-            baselineBpm = baseline.lastComputedBaselineBpm,
+            baselineBpm = completedBaselineBpm,
             onConfirm = {
                 scope.launch { baselineManager.dismissCompletionDialog() }
             },
