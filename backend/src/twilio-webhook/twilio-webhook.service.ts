@@ -30,7 +30,7 @@ export class TwilioWebhookService {
     return this.config.get<string>('BASE_URL') || 'https://daro-reporter-production.up.railway.app';
   }
 
-  async generateVoiceResponse(userId: string): Promise<string> {
+  async generateVoiceResponse(userId: string, eventType = 'syncope'): Promise<string> {
     let userName = '어르신';
 
     if (userId) {
@@ -46,12 +46,14 @@ export class TwilioWebhookService {
       }
     }
 
+    const recordingAction = `${this.baseUrl}/twilio/recording?userId=${userId}&eventType=${eventType}`;
+
     return `
       <Response>
         <Say language="ko-KR">${userName}님, 안녕하세요. 농업인 안전 확인 전화입니다. 워치에서 위험 신호가 감지됐어요. 지금 괜찮으시면 괜찮아요, 아프시거나 도움이 필요하시면 아파요 또는 도와줘 라고 말씀해 주세요.</Say>
-        <Record maxLength="15" playBeep="false" action="${this.baseUrl}/twilio/recording" />
+        <Record maxLength="15" playBeep="false" action="${recordingAction}" />
         <Say language="ko-KR">응답이 없어 다시 여쭤봅니다. 지금 괜찮으신가요?</Say>
-        <Record maxLength="15" playBeep="false" action="${this.baseUrl}/twilio/recording" />
+        <Record maxLength="15" playBeep="false" action="${recordingAction}" />
       </Response>
     `;
   }
@@ -112,8 +114,17 @@ export class TwilioWebhookService {
     }
   }
 
-  async handleRecording(callSid: string, recordingUrl: string, recordingSid: string): Promise<string> {
-    const ctx = this.triggerService.getCallContext(callSid);
+  async handleRecording(
+    callSid: string,
+    recordingUrl: string,
+    recordingSid: string,
+    userId?: string,
+    eventType?: string,
+  ): Promise<string> {
+    let ctx = this.triggerService.getCallContext(callSid);
+    if (!ctx && userId) {
+      ctx = await this.recoverCallContext(callSid, userId, eventType);
+    }
     this.logger.log(`Recording ready: ${recordingSid} for call ${callSid}`);
 
     if (!ctx) {
@@ -143,8 +154,35 @@ export class TwilioWebhookService {
       this.logger.error('Error in recording pipeline', err);
       await this.emergencyService.notifyEmergency(ctx.userId, ctx.eventType, 'pipeline_error');
       this.stateMachine.resolveAlert(ctx.userId);
-      return '<Response><Hangup/></Response>';
+      return `
+        <Response>
+          <Say language="ko-KR">알겠습니다. 지금 바로 도움을 요청하겠습니다. 잠시만 기다려 주세요.</Say>
+          <Hangup/>
+        </Response>
+      `;
     }
+  }
+
+  private async recoverCallContext(
+    callSid: string,
+    userId: string,
+    eventType?: string,
+  ): Promise<{ userId: string; eventType: 'heatstroke' | 'syncope'; alertId: number | null; attempt: number } | undefined> {
+    const db = this.supabaseService.db;
+    const resolvedEventType = eventType === 'heatstroke' ? 'heatstroke' : 'syncope';
+
+    const { data: alert } = await db
+      .from('alerts')
+      .select('id')
+      .eq('user_id', userId)
+      .in('status', ['triggered', 'calling'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    this.logger.log(`Recovered call context for ${callSid} (user ${userId})`);
+    this.triggerService.registerCallContext(callSid, userId, resolvedEventType, alert?.id ?? null, 1);
+    return { userId, eventType: resolvedEventType, alertId: alert?.id ?? null, attempt: 1 };
   }
 
   private async handleClassification(
@@ -195,7 +233,7 @@ export class TwilioWebhookService {
           return `
             <Response>
               <Say language="ko-KR">죄송해요, 잘 못 들었어요. 다시 한 번 여쭤보겠습니다. 지금 괜찮으시면 괜찮아요, 도움이 필요하시면 아파요 또는 도와줘 라고 말씀해 주세요.</Say>
-              <Record maxLength="15" playBeep="false" action="${this.baseUrl}/twilio/recording" />
+              <Record maxLength="15" playBeep="false" action="${this.baseUrl}/twilio/recording?userId=${ctx.userId}&eventType=${ctx.eventType}" />
               <Say language="ko-KR">응답이 확인되지 않아 도움을 요청하겠습니다.</Say>
               <Hangup/>
             </Response>
