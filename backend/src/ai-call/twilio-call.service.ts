@@ -30,7 +30,7 @@ export class TwilioCallService {
 
     const call = await client.calls.create({
       to,
-      from: this.config.get<string>('TWILIO_PHONE_NUMBER')!,
+      from: this.config.get<string>('TWILIO_PHONE_NUMBER')!.replace(/\s/g, ''),
       url: `${baseUrl}/twilio/voice-response?userId=${userId}&eventType=${eventType}`,
       statusCallback: `${baseUrl}/twilio/voice-status`,
       statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
@@ -49,7 +49,7 @@ export class TwilioCallService {
 
     const call = await client.calls.create({
       to: healthCenterPhone,
-      from: this.config.get<string>('TWILIO_PHONE_NUMBER')!,
+      from: this.config.get<string>('TWILIO_PHONE_NUMBER')!.replace(/\s/g, ''),
       twiml: `<Response><Say language="ko-KR">${message}</Say><Pause length="2"/><Say language="ko-KR">${message}</Say></Response>`,
     });
 
