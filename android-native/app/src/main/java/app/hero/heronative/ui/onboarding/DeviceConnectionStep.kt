@@ -1,5 +1,7 @@
 package app.hero.heronative.ui.onboarding
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,9 +38,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.hero.heronative.health.BluetoothWatchDetector
 import app.hero.heronative.health.HealthConnectManager
-import app.hero.heronative.location.LocationProvider
-import app.hero.heronative.monitoring.MonitoringServiceRequirements
+import app.hero.heronative.monitoring.ConnectionStatusRefresher
 import app.hero.heronative.ui.components.HeroPrimaryButton
 import app.hero.heronative.ui.theme.HeroColors
 import kotlinx.coroutines.delay
@@ -70,27 +72,35 @@ fun DeviceConnectionStep(
     val context = LocalContext.current
     var status by remember { mutableStateOf(DeviceConnectionStatus()) }
 
+    val bluetoothPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* 폴링에서 재확인 */ }
+
     LaunchedEffect(Unit) {
-        while (true) {
-            val hasHc = healthManager.hasAllPermissions()
-            val hasHr = if (hasHc) {
-                runCatching {
-                    healthManager.readHeartRates(10).flatMap { it.samples }.isNotEmpty()
-                }.getOrDefault(false)
-            } else {
-                false
+        BluetoothWatchDetector.requiredBluetoothPermission()?.let { permission ->
+            if (!BluetoothWatchDetector.hasBluetoothPermission(context)) {
+                bluetoothPermissionLauncher.launch(permission)
             }
-            val hasLocation = MonitoringServiceRequirements.hasLocationAccess(context)
-            val gpsReady = hasLocation && LocationProvider(context).hasFineLocation()
+        }
+        while (true) {
+            val snapshot = ConnectionStatusRefresher.refresh(context, healthManager)
 
             status = DeviceConnectionStatus(
-                device = when {
-                    hasHc && hasHr -> ConnectionBadgeState.Connected
-                    hasHc -> ConnectionBadgeState.Disconnected
-                    else -> ConnectionBadgeState.Disconnected
+                device = if (snapshot.deviceConnected) {
+                    ConnectionBadgeState.Connected
+                } else {
+                    ConnectionBadgeState.Disconnected
                 },
-                healthApp = if (hasHc) ConnectionBadgeState.Connected else ConnectionBadgeState.Disconnected,
-                lte = if (gpsReady) ConnectionBadgeState.Connected else ConnectionBadgeState.Disconnected,
+                healthApp = if (snapshot.healthAppConnected) {
+                    ConnectionBadgeState.Connected
+                } else {
+                    ConnectionBadgeState.Disconnected
+                },
+                lte = if (snapshot.networkConnected) {
+                    ConnectionBadgeState.Connected
+                } else {
+                    ConnectionBadgeState.Disconnected
+                },
             )
             delay(2000)
         }

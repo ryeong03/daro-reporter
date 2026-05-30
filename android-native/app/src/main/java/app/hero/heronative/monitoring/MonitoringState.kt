@@ -10,6 +10,7 @@ data class MonitoringUiState(
     val steps: Long = 0,
     val detectionState: String = "normal",
     val watchConnected: Boolean = false,
+    val bluetoothWatchBonded: Boolean = false,
     val gpsActive: Boolean = false,
     val lastSync: String? = null,
     val aiCallActive: Boolean = false,

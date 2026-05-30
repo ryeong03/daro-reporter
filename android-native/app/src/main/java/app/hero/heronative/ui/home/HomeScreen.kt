@@ -30,18 +30,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.health.connect.client.PermissionController
 import app.hero.heronative.data.UserSession
+import app.hero.heronative.health.BluetoothWatchDetector
 import app.hero.heronative.health.HealthConnectManager
 import app.hero.heronative.health.HealthConnectNavigator
 import app.hero.heronative.location.LocationProvider
+import app.hero.heronative.monitoring.ConnectionStatusRefresher
 import app.hero.heronative.monitoring.DataSyncManager
 import app.hero.heronative.monitoring.LocationTrackerHolder
 import app.hero.heronative.monitoring.MonitoringForegroundService
 import app.hero.heronative.monitoring.MonitoringScheduler
 import app.hero.heronative.monitoring.MonitoringServiceRequirements
 import app.hero.heronative.monitoring.MonitoringStateHolder
+import app.hero.heronative.monitoring.NetworkUtils
 import app.hero.heronative.ui.detectionStyle
 import app.hero.heronative.ui.disconnectedStyle
 import app.hero.heronative.ui.theme.HeroColors
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -58,6 +62,20 @@ fun HomeScreen(
     var pendingOpenHealthConnect by remember { mutableStateOf(false) }
     var showAiCallDialog by remember { mutableStateOf(false) }
     var showDeviceDialog by remember { mutableStateOf(false) }
+    var deviceHasHeartRate by remember { mutableStateOf(false) }
+    var watchDeviceConnected by remember { mutableStateOf(false) }
+
+    val bluetoothPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* 폴링 루프에서 재확인 */ }
+
+    LaunchedEffect(session.userId) {
+        BluetoothWatchDetector.requiredBluetoothPermission()?.let { permission ->
+            if (!BluetoothWatchDetector.hasBluetoothPermission(context)) {
+                bluetoothPermissionLauncher.launch(permission)
+            }
+        }
+    }
 
     LaunchedEffect(ui.aiCallActive) {
         if (ui.aiCallActive) showAiCallDialog = true
@@ -99,11 +117,18 @@ fun HomeScreen(
     }
 
     LaunchedEffect(session.userId) {
-        val hasHc = healthManager.hasAllPermissions()
-        MonitoringStateHolder.update { it.copy(watchConnected = hasHc) }
-        if (LocationProvider(appContext).hasFineLocation()) {
-            LocationTrackerHolder.ensureStarted(context)
-            DataSyncManager(context).refreshGpsStatus()
+        while (true) {
+            val snapshot = ConnectionStatusRefresher.refresh(context, healthManager)
+            deviceHasHeartRate = snapshot.hasHeartRate
+            watchDeviceConnected = snapshot.deviceConnected
+            if (snapshot.hasHeartRate) {
+                DataSyncManager(context).pollHeartRate()
+            }
+            if (LocationProvider(appContext).hasFineLocation()) {
+                LocationTrackerHolder.ensureStarted(context)
+                DataSyncManager(context).refreshGpsStatus()
+            }
+            delay(2_000)
         }
     }
 
@@ -134,9 +159,9 @@ fun HomeScreen(
     }
 
     val healthAppConnected = ui.watchConnected
-    val deviceConnected = ui.watchConnected && ui.heartRate > 0
-    val lteConnected = ui.gpsActive && ui.lastSync != null
-    val isDisconnected = !deviceConnected && ui.heartRate <= 0
+    val deviceConnected = watchDeviceConnected
+    val networkConnected = NetworkUtils.hasInternet(context) || ui.lastSync != null
+    val isDisconnected = !deviceConnected && ui.heartRate <= 0 && !deviceHasHeartRate
     val stateInfo = if (isDisconnected && ui.detectionState == "normal") {
         disconnectedStyle()
     } else {
@@ -146,10 +171,16 @@ fun HomeScreen(
     val showHealthCenterBanner = ui.healthCenterActive
 
     val openDeviceFlow: () -> Unit = {
-        if (!deviceConnected) {
-            showDeviceDialog = true
-        } else {
-            openHealthConnect()
+        when {
+            deviceConnected && ui.bluetoothWatchBonded && !healthAppConnected -> {
+                scope.launch {
+                    snack.showSnackbar(
+                        "워치: ${BluetoothWatchDetector.bondedWatchNames(context).joinToString()}",
+                    )
+                }
+            }
+            !deviceConnected -> showDeviceDialog = true
+            else -> openHealthConnect()
         }
     }
 
@@ -214,7 +245,7 @@ fun HomeScreen(
                 ConnectionItem(
                     icon = HomeConnectionIcons.Lte,
                     title = "LTE 통신",
-                    connected = lteConnected,
+                    connected = networkConnected,
                     onClick = openLocationFlow,
                 ),
             ),

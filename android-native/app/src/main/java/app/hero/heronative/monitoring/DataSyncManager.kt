@@ -140,8 +140,8 @@ class DataSyncManager(
             return
         }
         MonitoringStateHolder.update { it.copy(watchConnected = true) }
-        // RN getLatestHeartRate와 동일하게 최근 2분 구간만 조회
-        val records = runCatching { healthManager.readHeartRates(2) }.getOrElse { emptyList() }
+        // RN getLatestHeartRate와 동일하게 최근 10분 구간 조회 (워치 동기화 지연 허용)
+        val records = runCatching { healthManager.readHeartRates(10) }.getOrElse { emptyList() }
         val bpm = records.lastOrNull()?.samples?.lastOrNull()?.beatsPerMinute ?: return
         MonitoringStateHolder.update {
             it.copy(heartRate = bpm.toInt(), watchConnected = true)

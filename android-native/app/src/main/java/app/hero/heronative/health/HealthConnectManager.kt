@@ -12,7 +12,15 @@ import java.time.Instant
 
 class HealthConnectManager(context: Context) {
     private val appContext = context.applicationContext
-    private val client: HealthConnectClient = HealthConnectClient.getOrCreate(appContext)
+
+    val isAvailable: Boolean =
+        HealthConnectClient.getSdkStatus(appContext) == HealthConnectClient.SDK_AVAILABLE
+
+    private val client: HealthConnectClient? = if (isAvailable) {
+        runCatching { HealthConnectClient.getOrCreate(appContext) }.getOrNull()
+    } else {
+        null
+    }
 
     val permissions: Set<String> = setOf(
         HealthPermission.getReadPermission(HeartRateRecord::class),
@@ -21,32 +29,38 @@ class HealthConnectManager(context: Context) {
 
     /** 심박·걸음 읽기 권한이 모두 허용됐는지 확인한다 */
     suspend fun hasAllPermissions(): Boolean {
-        val granted = client.permissionController.getGrantedPermissions()
+        val c = client ?: return false
+        val granted = c.permissionController.getGrantedPermissions()
         return permissions.all { it in granted }
     }
 
     /** Health Connect 앱 설정 화면으로 이동하는 Intent */
-    fun createManageDataIntent(): Intent =
-        HealthConnectClient.getHealthConnectManageDataIntent(appContext)
+    fun createManageDataIntent(): Intent? =
+        if (isAvailable) {
+            HealthConnectClient.getHealthConnectManageDataIntent(appContext)
+        } else {
+            null
+        }
 
     suspend fun readHeartRates(sinceMinutes: Long): List<HeartRateRecord> {
+        val c = client ?: return emptyList()
         val now = Instant.now()
         val start = now.minusSeconds(sinceMinutes * 60)
         val req = ReadRecordsRequest(
             recordType = HeartRateRecord::class,
-            timeRangeFilter = TimeRangeFilter.between(start, now)
+            timeRangeFilter = TimeRangeFilter.between(start, now),
         )
-        return client.readRecords(req).records
+        return runCatching { c.readRecords(req).records }.getOrElse { emptyList() }
     }
 
     suspend fun readSteps(sinceMinutes: Long): List<StepsRecord> {
+        val c = client ?: return emptyList()
         val now = Instant.now()
         val start = now.minusSeconds(sinceMinutes * 60)
         val req = ReadRecordsRequest(
             recordType = StepsRecord::class,
-            timeRangeFilter = TimeRangeFilter.between(start, now)
+            timeRangeFilter = TimeRangeFilter.between(start, now),
         )
-        return client.readRecords(req).records
+        return runCatching { c.readRecords(req).records }.getOrElse { emptyList() }
     }
 }
-
