@@ -70,8 +70,8 @@ export class TriggerService {
     try {
       const callSid = await this.twilioCallService.makeCall(user.phone, userId, eventType);
       this.registerCallContext(callSid, userId, eventType, alert?.id ?? null, 1);
-    } catch (err) {
-      this.logger.error('Failed to initiate call', err);
+    } catch (err: any) {
+      this.logger.error(`Failed to initiate call: ${err.message} (code ${err.code ?? 'n/a'})`);
       await this.emergencyService.notifyEmergency(userId, eventType, 'call_failed');
     }
   }
