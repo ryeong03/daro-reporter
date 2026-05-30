@@ -103,13 +103,17 @@ export class TwilioWebhookService {
             this.triggerService.registerCallContext(newSid, ctx.userId, ctx.eventType, ctx.alertId, ctx.attempt + 1);
           } catch (err) {
             this.logger.error('Retry call failed', err);
-            await this.emergencyService.notifyEmergency(ctx.userId, ctx.eventType, 'no_answer_after_retry');
+            await this.emergencyService.notifyEmergency(
+              ctx.userId, ctx.eventType, 'no_answer_after_retry', ctx.alertId,
+            );
             this.stateMachine.resolveAlert(ctx.userId);
           }
         }, RETRY_DELAY_MS);
       } else {
         this.logger.log('Max attempts reached — escalating to emergency');
-        await this.emergencyService.notifyEmergency(ctx.userId, ctx.eventType, 'no_answer_after_retry');
+        await this.emergencyService.notifyEmergency(
+          ctx.userId, ctx.eventType, 'no_answer_after_retry', ctx.alertId,
+        );
         this.stateMachine.resolveAlert(ctx.userId);
       }
 
@@ -174,7 +178,9 @@ export class TwilioWebhookService {
       await this.applyClassification(classifyResult.classification, ctx, callSid);
     } catch (err) {
       this.logger.error('Error in recording pipeline', err);
-      await this.emergencyService.notifyEmergency(ctx.userId, ctx.eventType, 'pipeline_error');
+      await this.emergencyService.notifyEmergency(
+        ctx.userId, ctx.eventType, 'pipeline_error', ctx.alertId,
+      );
       this.stateMachine.resolveAlert(ctx.userId);
       this.triggerService.removeCallContext(callSid);
     }
@@ -190,12 +196,12 @@ export class TwilioWebhookService {
     switch (classification) {
       case 'safe': {
         this.logger.log('Safe — closing alert, returning to normal');
-        if (ctx.alertId) {
-          await db
-            .from('alerts')
-            .update({ status: 'closed_safe', resolved_at: new Date().toISOString() })
-            .eq('id', ctx.alertId);
-        }
+        const resolvedAt = new Date().toISOString();
+        await db
+          .from('alerts')
+          .update({ status: 'closed_safe', resolved_at: resolvedAt })
+          .eq('user_id', ctx.userId)
+          .in('status', ['triggered', 'calling']);
         this.stateMachine.resolveAlert(ctx.userId);
         this.triggerService.removeCallContext(callSid);
         return;
@@ -203,7 +209,9 @@ export class TwilioWebhookService {
 
       case 'emergency': {
         this.logger.log('Emergency — notifying all channels');
-        await this.emergencyService.notifyEmergency(ctx.userId, ctx.eventType, 'emergency_confirmed_by_call');
+        await this.emergencyService.notifyEmergency(
+          ctx.userId, ctx.eventType, 'emergency_confirmed_by_call', ctx.alertId,
+        );
         this.stateMachine.resolveAlert(ctx.userId);
         this.triggerService.removeCallContext(callSid);
         return;
@@ -227,13 +235,17 @@ export class TwilioWebhookService {
               );
             } catch (err) {
               this.logger.error('Unclear retry call failed', err);
-              await this.emergencyService.notifyEmergency(ctx.userId, ctx.eventType, 'unclear_after_max_attempts');
+              await this.emergencyService.notifyEmergency(
+                ctx.userId, ctx.eventType, 'unclear_after_max_attempts', ctx.alertId,
+              );
               this.stateMachine.resolveAlert(ctx.userId);
             }
           }, RETRY_DELAY_MS);
         } else {
           this.logger.log('Unclear after max attempts — escalating to emergency');
-          await this.emergencyService.notifyEmergency(ctx.userId, ctx.eventType, 'unclear_after_max_attempts');
+          await this.emergencyService.notifyEmergency(
+            ctx.userId, ctx.eventType, 'unclear_after_max_attempts', ctx.alertId,
+          );
           this.stateMachine.resolveAlert(ctx.userId);
         }
         this.triggerService.removeCallContext(callSid);

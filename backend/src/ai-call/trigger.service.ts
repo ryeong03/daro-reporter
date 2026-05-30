@@ -56,23 +56,30 @@ export class TriggerService {
       return;
     }
 
-    const { data: alert } = await db
+    const { data: activeAlert } = await db
       .from('alerts')
-      .select('id')
+      .select('id, status')
       .eq('user_id', userId)
-      .eq('status', 'triggered')
+      .in('status', ['triggered', 'calling'])
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    if (activeAlert?.status === 'calling') {
+      this.logger.warn(`Alert ${activeAlert.id} already calling — skipping duplicate call`);
+      return;
+    }
+
+    const alertId = activeAlert?.id ?? null;
 
     this.logger.log(`Triggering call to ${user.name} (${user.phone}) for ${eventType}`);
 
     try {
       const callSid = await this.twilioCallService.makeCall(user.phone, userId, eventType);
-      this.registerCallContext(callSid, userId, eventType, alert?.id ?? null, 1);
+      this.registerCallContext(callSid, userId, eventType, alertId, 1);
     } catch (err: any) {
       this.logger.error(`Failed to initiate call: ${err.message} (code ${err.code ?? 'n/a'})`);
-      await this.emergencyService.notifyEmergency(userId, eventType, 'call_failed');
+      await this.emergencyService.notifyEmergency(userId, eventType, 'call_failed', alertId);
     }
   }
 }

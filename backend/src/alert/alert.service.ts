@@ -20,6 +20,22 @@ export class AlertService {
       const lat = data.location?.lat || 0;
       const lng = data.location?.lng || 0;
 
+      const { data: activeAlert } = await db
+        .from('alerts')
+        .select('id, status')
+        .eq('user_id', data.user_id)
+        .in('status', ['triggered', 'calling'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeAlert) {
+        this.logger.warn(
+          `Active alert ${activeAlert.id} (${activeAlert.status}) — skipping duplicate alert/call`,
+        );
+        return { status: 'ok', action: 'alert_already_active', alert_id: activeAlert.id };
+      }
+
       await db.from('alerts').insert({
         user_id: data.user_id,
         event_type: 'fall',

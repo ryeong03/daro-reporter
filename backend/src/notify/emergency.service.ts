@@ -33,8 +33,20 @@ export class EmergencyService {
     private config: ConfigService,
   ) {}
 
-  async notifyEmergency(userId: string, eventType: EventType, _reason: string): Promise<void> {
+  async notifyEmergency(
+    userId: string,
+    eventType: EventType,
+    reason: string,
+    alertId?: number | null,
+  ): Promise<void> {
     const db = this.supabaseService.db;
+
+    if (await this.shouldSkipEmergency(userId, alertId)) {
+      this.logger.log(
+        `Skipping emergency for user ${userId} (${reason}) — already confirmed safe`,
+      );
+      return;
+    }
 
     const { data: user } = await db
       .from('users')
@@ -65,15 +77,22 @@ export class EmergencyService {
     const eventLabel = EVENT_LABELS[eventType];
     const message = `[Hero 긴급] ${user.name}님 ${eventLabel}\n위치: ${locationStr}\n지도: ${mapLink}\n사유: ${HEALTH_CENTER_REASON}\n즉시 확인 필요`;
 
-    const { data: alert } = await db
-      .from('alerts')
-      .select('id')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    let resolvedAlertId = alertId ?? null;
+    if (!resolvedAlertId) {
+      const { data: alert } = await db
+        .from('alerts')
+        .select('id, status')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      resolvedAlertId = alert?.id ?? null;
 
-    const alertId = alert?.id;
+      if (alert?.status === 'closed_safe') {
+        this.logger.log(`Skipping emergency — latest alert ${alert.id} is already closed_safe`);
+        return;
+      }
+    }
 
     const { data: guardians } = await db
       .from('guardians')
@@ -91,7 +110,7 @@ export class EmergencyService {
     const baseUrl = this.config.get<string>('DASHBOARD_URL') || 'https://daro-reporter.vercel.app';
 
     const guardianNotifications = (guardians || []).map((g) => {
-      const token = this.guardianService.generateEmergencyToken(g.id, userId, alertId || 0);
+      const token = this.guardianService.generateEmergencyToken(g.id, userId, resolvedAlertId || 0);
       const emergencyLink = `${baseUrl}/emergency?token=${token}`;
       const guardianMessage = `[Hero 긴급] ${user.name} 어르신에게 ${eventLabel} 상황이 발생했습니다.\n위치: ${locationStr}\n지도: ${mapLink}\n보건소에 자동 알림이 전달되었습니다.\n\n상세 확인: ${emergencyLink}`;
       return this.smsService.sendSMS(g.phone, guardianMessage);
@@ -105,7 +124,7 @@ export class EmergencyService {
     const channels = ['sms', 'slack', 'call'] as const;
     for (const [i, result] of (await coreResults).entries()) {
       await db.from('notification_logs').insert({
-        alert_id: alertId,
+        alert_id: resolvedAlertId,
         channel: channels[i],
         recipient: i === 0 ? healthCenterPhone : (i === 1 ? 'slack' : healthCenterPhone),
         success: result.status === 'fulfilled',
@@ -115,7 +134,7 @@ export class EmergencyService {
 
     for (const guardian of (guardians || [])) {
       await db.from('notification_logs').insert({
-        alert_id: alertId,
+        alert_id: resolvedAlertId,
         channel: 'sms',
         recipient: guardian.phone,
         success: true,
@@ -123,13 +142,67 @@ export class EmergencyService {
       });
     }
 
-    if (alertId) {
-      await db
+    if (resolvedAlertId) {
+      const { data: current } = await db
         .from('alerts')
-        .update({ status: 'closed_emergency', resolved_at: new Date().toISOString() })
-        .eq('id', alertId);
+        .select('status')
+        .eq('id', resolvedAlertId)
+        .maybeSingle();
+
+      if (current?.status !== 'closed_safe') {
+        await db
+          .from('alerts')
+          .update({ status: 'closed_emergency', resolved_at: new Date().toISOString() })
+          .eq('id', resolvedAlertId);
+      }
     }
 
     this.logger.log(`Emergency notifications sent for ${user.name} (+ ${guardians?.length || 0} guardians)`);
+  }
+
+  /** 괜찮아요(safe) 확인 후 중복 alert·retry가 보건소 알림을 보내지 않도록 */
+  private async shouldSkipEmergency(userId: string, alertId?: number | null): Promise<boolean> {
+    const db = this.supabaseService.db;
+    const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
+    const { data: recentSafeAlert } = await db
+      .from('alerts')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('status', 'closed_safe')
+      .gte('resolved_at', since)
+      .limit(1)
+      .maybeSingle();
+
+    if (recentSafeAlert) return true;
+
+    if (alertId) {
+      const { data: alert } = await db
+        .from('alerts')
+        .select('status')
+        .eq('id', alertId)
+        .maybeSingle();
+      if (alert?.status === 'closed_safe') return true;
+    }
+
+    const { data: userAlerts } = await db
+      .from('alerts')
+      .select('id')
+      .eq('user_id', userId)
+      .gte('created_at', since);
+
+    const alertIds = (userAlerts || []).map((a) => a.id);
+    if (alertIds.length > 0) {
+      const { data: safeCall } = await db
+        .from('call_logs')
+        .select('id')
+        .in('alert_id', alertIds)
+        .eq('classification', 'safe')
+        .limit(1)
+        .maybeSingle();
+      if (safeCall) return true;
+    }
+
+    return false;
   }
 }
