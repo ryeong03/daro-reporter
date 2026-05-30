@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -22,33 +23,35 @@ fun HeroNavHost() {
         factory = UserViewModelFactory(application),
     )
     val session by userViewModel.session.collectAsState()
-    val navController = rememberNavController()
 
-    when (session) {
+    when (val current = session) {
         null -> {
-            OnboardingScreen(
-                userViewModel = userViewModel,
-                onComplete = { /* session flow updates → Home */ }
-            )
+            // 로그아웃마다 온보딩 폼·워치 연결 단계를 새로 시작
+            key("onboarding") {
+                OnboardingScreen(
+                    userViewModel = userViewModel,
+                    onComplete = { /* session flow → Home */ },
+                )
+            }
         }
         else -> {
-            val current = checkNotNull(session)
-            NavHost(navController = navController, startDestination = "home") {
-                composable("home") {
-                    HomeScreen(
-                        session = current,
-                        onOpenSettings = { navController.navigate("settings") }
-                    )
-                }
-                composable("settings") {
-                    SettingsScreen(
-                        session = current,
-                        userViewModel = userViewModel,
-                        onBack = { navController.popBackStack() },
-                        onLoggedOut = {
-                            navController.popBackStack("home", inclusive = true)
-                        }
-                    )
+            // 사용자마다 NavController·홈 권한 플로우를 분리 (화이트 화면 방지)
+            key(current.userId) {
+                val navController = rememberNavController()
+                NavHost(navController = navController, startDestination = "home") {
+                    composable("home") {
+                        HomeScreen(
+                            session = current,
+                            onOpenSettings = { navController.navigate("settings") },
+                        )
+                    }
+                    composable("settings") {
+                        SettingsScreen(
+                            session = current,
+                            userViewModel = userViewModel,
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
                 }
             }
         }

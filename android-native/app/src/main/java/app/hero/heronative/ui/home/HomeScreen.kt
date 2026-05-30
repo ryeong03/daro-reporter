@@ -1,17 +1,10 @@
 package app.hero.heronative.ui.home
 
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.health.connect.client.PermissionController
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,10 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -41,13 +32,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
-import android.content.Context
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.health.connect.client.PermissionController
 import app.hero.heronative.data.UserSession
 import app.hero.heronative.health.HealthConnectManager
 import app.hero.heronative.location.LocationProvider
@@ -71,7 +60,7 @@ private enum class HomePermissionStep {
 @Composable
 fun HomeScreen(
     session: UserSession,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
 ) {
     val context = LocalContext.current
     val appContext = context.applicationContext
@@ -81,16 +70,15 @@ fun HomeScreen(
     var permissionStep by remember { mutableStateOf(HomePermissionStep.Idle) }
 
     val hcPermissionLauncher = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract()
+        contract = PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
         val connected = granted.containsAll(healthManager.permissions)
         MonitoringStateHolder.update { it.copy(watchConnected = connected) }
-        // 거부 시 다이얼로그 반복 방지 — 탭으로 다시 요청
         permissionStep = if (connected) HomePermissionStep.Location else HomePermissionStep.Ready
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
+        ActivityResultContracts.RequestMultiplePermissions(),
     ) { _ ->
         scope.launch {
             startGpsTracking(context)
@@ -117,25 +105,28 @@ fun HomeScreen(
         when (permissionStep) {
             HomePermissionStep.HealthConnect ->
                 hcPermissionLauncher.launch(healthManager.permissions)
-            HomePermissionStep.Location -> {
+            HomePermissionStep.Location ->
                 permissionLauncher.launch(MonitoringServiceRequirements.monitoringRuntimePermissions())
-            }
             else -> Unit
         }
     }
 
-    val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
-        initialValue = 1f,
-        targetValue = 1.08f,
-        animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse),
-        label = "scale"
-    )
     val stateInfo = detectionStyle(ui.detectionState)
-    val hr = ui.heartRate
-    val barColor = when {
-        hr > 120 -> HeroColors.Danger
-        hr > 100 -> HeroColors.Warning
-        else -> HeroColors.Primary
+    val requestHcPermissions: () -> Unit = {
+        scope.launch {
+            if (healthManager.hasAllPermissions()) {
+                MonitoringStateHolder.update { it.copy(watchConnected = true) }
+            } else {
+                hcPermissionLauncher.launch(healthManager.permissions)
+            }
+        }
+    }
+    val requestLocationPermissions: () -> Unit = {
+        if (MonitoringServiceRequirements.hasLocationAccess(context)) {
+            scope.launch { startGpsTracking(context) }
+        } else {
+            permissionStep = HomePermissionStep.Location
+        }
     }
 
     Column(
@@ -143,130 +134,71 @@ fun HomeScreen(
             .fillMaxSize()
             .background(HeroColors.Background)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 20.dp),
     ) {
         Spacer(Modifier.height(48.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Column {
-                Text("${session.userName}님", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = HeroColors.TextPrimary)
-                Text("오늘도 안전한 하루 되세요", fontSize = 15.sp, color = HeroColors.TextSecondary)
+                Text(
+                    text = "${session.userName}님",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = HeroColors.TextPrimary,
+                )
+                Text(
+                    text = stateInfo.greeting,
+                    fontSize = 15.sp,
+                    color = HeroColors.TextSecondary,
+                )
             }
             IconButton(
                 onClick = onOpenSettings,
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(HeroColors.Surface)
+                    .background(HeroColors.Surface),
             ) {
                 Icon(Icons.Default.Settings, contentDescription = "설정")
             }
         }
         Spacer(Modifier.height(24.dp))
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
-                .background(HeroColors.Surface)
-                .padding(28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("현재 심박수", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = HeroColors.TextSecondary)
-            Text(
-                text = if (hr > 0) "$hr" else "--",
-                fontSize = 72.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = HeroColors.Primary,
-                modifier = Modifier.scale(pulse)
-            )
-            Text("BPM", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = HeroColors.TextSecondary)
-            Spacer(Modifier.height(16.dp))
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-                    .clip(RoundedCornerShape(3.dp))
-                    .background(HeroColors.Border)
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth(if (hr > 0) (hr / 180f).coerceAtMost(1f) else 0f)
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp))
-                        .background(barColor)
-                )
-            }
-            Text("정상 범위: 60~100 BPM", fontSize = 12.sp, color = HeroColors.TextMuted, modifier = Modifier.padding(top = 8.dp))
-        }
+        HomeStatusCard(
+            statusMessage = stateInfo.statusMessage,
+            heartRate = ui.heartRate,
+            heartColor = stateInfo.heartColor,
+            cardBackground = stateInfo.cardBackground,
+            lastUpdatedLabel = ui.lastSync ?: "--:--",
+        )
 
         Spacer(Modifier.height(16.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(stateInfo.background)
-                .padding(18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Box(Modifier.size(12.dp).clip(CircleShape).background(stateInfo.color))
-            Column {
-                Text(stateInfo.label, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = stateInfo.color)
-                Text(stateInfo.description, fontSize = 13.sp, color = HeroColors.TextSecondary)
-            }
-        }
 
-        Spacer(Modifier.height(16.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            GridCard("👣", if (ui.steps > 0) ui.steps.toString() else "--", "10분 걸음수", Modifier.weight(1f))
-            GridCard(
-                icon = "📡",
-                value = if (ui.gpsActive) "ON" else "OFF",
-                label = "GPS 추적",
-                modifier = Modifier.weight(1f),
-                onClick = if (!ui.gpsActive) {
-                    {
-                        if (MonitoringServiceRequirements.hasLocationAccess(context)) {
-                            scope.launch { startGpsTracking(context) }
-                        } else {
-                            permissionStep = HomePermissionStep.Location
-                        }
-                    }
-                } else {
-                    null
-                },
-            )
-        }
-
-        Spacer(Modifier.height(16.dp))
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(HeroColors.Surface)
-                .padding(20.dp)
-        ) {
-            Text("연결 상태", fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(12.dp))
-            ConnectionRow(
-                icon = "⌚",
-                title = "스마트워치",
-                connected = ui.watchConnected,
-                onReconnect = {
-                    scope.launch {
-                        if (healthManager.hasAllPermissions()) {
-                            MonitoringStateHolder.update { it.copy(watchConnected = true) }
-                        } else {
-                            hcPermissionLauncher.launch(healthManager.permissions)
-                        }
-                    }
-                },
-            )
-            DividerLine()
-            ConnectionRow("🔄", "마지막 동기화", label = ui.lastSync ?: "-", badge = false)
-            DividerLine()
-            ConnectionRow("🌐", "서버 통신", true)
-        }
+        HomeConnectionCard(
+            items = listOf(
+                ConnectionItem(
+                    icon = HomeConnectionIcons.Device,
+                    title = "기기",
+                    connected = ui.watchConnected && ui.heartRate > 0,
+                    onReconnect = requestHcPermissions,
+                ),
+                ConnectionItem(
+                    icon = HomeConnectionIcons.HealthApp,
+                    title = "헬스 앱",
+                    connected = ui.watchConnected,
+                    onReconnect = requestHcPermissions,
+                ),
+                ConnectionItem(
+                    icon = HomeConnectionIcons.Lte,
+                    title = "LTE",
+                    connected = ui.lastSync != null,
+                    onReconnect = requestLocationPermissions,
+                ),
+            ),
+        )
         Spacer(Modifier.height(32.dp))
     }
 }
@@ -275,91 +207,3 @@ private suspend fun startGpsTracking(context: Context) {
     LocationTrackerHolder.ensureStarted(context)
     DataSyncManager(context).refreshGpsStatus()
 }
-
-@Composable
-private fun GridCard(
-    icon: String,
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
-) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(HeroColors.Surface)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(icon, fontSize = 28.sp)
-        Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text(label, fontSize = 12.sp, color = HeroColors.TextSecondary)
-    }
-}
-
-@Composable
-private fun ConnectionRow(
-    icon: String,
-    title: String,
-    connected: Boolean,
-    onReconnect: (() -> Unit)? = null,
-) {
-    ConnectionRow(
-        icon = icon,
-        title = title,
-        label = if (connected) "연결됨" else "미연결",
-        badge = true,
-        positive = connected,
-        onClick = if (!connected) onReconnect else null,
-    )
-}
-
-@Composable
-private fun ConnectionRow(
-    icon: String,
-    title: String,
-    label: String,
-    badge: Boolean,
-    positive: Boolean = true,
-    onClick: (() -> Unit)? = null,
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .then(
-                if (onClick != null) {
-                    Modifier.clickable(onClick = onClick)
-                } else {
-                    Modifier
-                }
-            ),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(icon, fontSize = 20.sp, modifier = Modifier.width(32.dp))
-        Text(title, modifier = Modifier.weight(1f), fontSize = 15.sp)
-        if (badge) {
-            Text(
-                label,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(if (positive) HeroColors.PrimaryLight else HeroColors.DangerBg)
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = if (positive) HeroColors.Primary else HeroColors.Danger
-            )
-        } else {
-            Text(label, fontSize = 14.sp, color = HeroColors.TextSecondary)
-        }
-    }
-}
-
-@Composable
-private fun DividerLine() {
-    Spacer(Modifier.height(4.dp))
-    Box(Modifier.fillMaxWidth().height(1.dp).background(HeroColors.Border))
-    Spacer(Modifier.height(4.dp))
-}
-

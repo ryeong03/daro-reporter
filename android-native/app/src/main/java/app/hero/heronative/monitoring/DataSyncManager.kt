@@ -207,5 +207,6 @@ object LocationTrackerHolder {
     fun stop() {
         tracker?.stop()
         tracker = null
+        trackingScope = null
     }
 }

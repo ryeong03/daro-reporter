@@ -26,4 +26,8 @@ object MonitoringScheduler {
             req
         )
     }
+
+    fun cancel(appContext: Context) {
+        WorkManager.getInstance(appContext).cancelUniqueWork(WORK_NAME)
+    }
 }

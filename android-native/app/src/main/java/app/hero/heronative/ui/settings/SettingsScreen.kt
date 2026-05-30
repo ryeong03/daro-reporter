@@ -37,7 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.hero.heronative.data.UserSession
 import app.hero.heronative.monitoring.AlertSender
-import app.hero.heronative.monitoring.MonitoringForegroundService
+import app.hero.heronative.monitoring.MonitoringReset
 import app.hero.heronative.ui.components.HeroPrimaryButton
 import app.hero.heronative.ui.theme.HeroColors
 import app.hero.heronative.viewmodel.UserViewModel
@@ -49,7 +49,6 @@ fun SettingsScreen(
     session: UserSession,
     userViewModel: UserViewModel,
     onBack: () -> Unit,
-    onLoggedOut: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -64,8 +63,10 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showLogoutDialog = false
-                    MonitoringForegroundService.stop(context)
-                    userViewModel.logout(onLoggedOut)
+                    scope.launch {
+                        MonitoringReset.resetForLogout(context)
+                        userViewModel.logout(onDone = {})
+                    }
                 }) { Text("확인", color = HeroColors.Danger) }
             },
             dismissButton = {

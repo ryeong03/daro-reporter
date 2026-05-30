@@ -23,4 +23,9 @@ object MonitoringStateHolder {
     fun update(transform: (MonitoringUiState) -> MonitoringUiState) {
         _state.value = transform(_state.value)
     }
+
+    /** 등록 초기화 후 UI·연결 상태를 기본값으로 되돌린다 */
+    fun reset() {
+        _state.value = MonitoringUiState()
+    }
 }
