@@ -1,0 +1,279 @@
+package app.hero.heronative.ui.onboarding
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MonitorHeart
+import androidx.compose.material.icons.outlined.SignalCellularAlt
+import androidx.compose.material.icons.outlined.Watch
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import app.hero.heronative.health.BluetoothWatchDetector
+import app.hero.heronative.health.HealthConnectManager
+import app.hero.heronative.health.SamsungHealthNavigator
+import app.hero.heronative.monitoring.ConnectionStatusRefresher
+import app.hero.heronative.ui.components.HeroPrimaryButton
+import app.hero.heronative.ui.components.HeroScreenTopBar
+import app.hero.heronative.ui.components.HeroSecondaryButton
+import app.hero.heronative.ui.home.ContinuousHeartRateGuideDialog
+import app.hero.heronative.ui.theme.HeroColors
+import kotlinx.coroutines.delay
+
+data class DeviceConnectionStatus(
+    val device: ConnectionBadgeState = ConnectionBadgeState.Checking,
+    val healthApp: ConnectionBadgeState = ConnectionBadgeState.Checking,
+    val lte: ConnectionBadgeState = ConnectionBadgeState.Checking,
+) {
+    val allConnected: Boolean =
+        device == ConnectionBadgeState.Connected &&
+            healthApp == ConnectionBadgeState.Connected &&
+            lte == ConnectionBadgeState.Connected
+
+    val isChecking: Boolean =
+        device == ConnectionBadgeState.Checking ||
+            healthApp == ConnectionBadgeState.Checking ||
+            lte == ConnectionBadgeState.Checking
+}
+
+@Composable
+fun DeviceConnectionStep(
+    healthManager: HealthConnectManager,
+    onBack: () -> Unit,
+    onOpenHealthConnect: () -> Unit,
+    onOpenDevice: () -> Unit,
+    onStart: () -> Unit,
+    onDeviceDisconnected: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    var status by remember { mutableStateOf(DeviceConnectionStatus()) }
+    var showHrGuide by remember { mutableStateOf(false) }
+    var hrGuidePrompted by remember { mutableStateOf(false) }
+    var lastSnapshot by remember { mutableStateOf<ConnectionStatusRefresher.ConnectionSnapshot?>(null) }
+
+    val bluetoothPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* 폴링에서 재확인 */ }
+
+    LaunchedEffect(Unit) {
+        BluetoothWatchDetector.requiredBluetoothPermission()?.let { permission ->
+            if (!BluetoothWatchDetector.hasBluetoothPermission(context)) {
+                bluetoothPermissionLauncher.launch(permission)
+            }
+        }
+        while (true) {
+            val snapshot = ConnectionStatusRefresher.refresh(context, healthManager)
+            lastSnapshot = snapshot
+
+            if (snapshot.bluetoothWatchBonded && !snapshot.hasHeartRate && !hrGuidePrompted) {
+                showHrGuide = true
+                hrGuidePrompted = true
+            }
+
+            status = DeviceConnectionStatus(
+                device = if (snapshot.deviceConnected) {
+                    ConnectionBadgeState.Connected
+                } else {
+                    ConnectionBadgeState.Disconnected
+                },
+                healthApp = if (snapshot.healthAppConnected) {
+                    ConnectionBadgeState.Connected
+                } else {
+                    ConnectionBadgeState.Disconnected
+                },
+                lte = if (snapshot.networkConnected) {
+                    ConnectionBadgeState.Connected
+                } else {
+                    ConnectionBadgeState.Disconnected
+                },
+            )
+            delay(2000)
+        }
+    }
+
+    if (showHrGuide) {
+        ContinuousHeartRateGuideDialog(
+            onOpenGalaxyWearable = {
+                if (!SamsungHealthNavigator.openGalaxyWearable(context)) {
+                    SamsungHealthNavigator.openSamsungHealth(context)
+                }
+            },
+            onOpenHealthConnect = onOpenHealthConnect,
+            onOpenSamsungHealth = { SamsungHealthNavigator.openSamsungHealth(context) },
+            onDismiss = { showHrGuide = false },
+        )
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(HeroColors.Background),
+    ) {
+        HeroScreenTopBar(
+            showBack = true,
+            onBack = onBack,
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 48.dp),
+        ) {
+        HeroLogoText()
+        Spacer(Modifier.height(32.dp))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(4.dp, RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(12.dp))
+                .background(HeroColors.Surface)
+                .padding(horizontal = 24.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "기기 연결을 확인할게요",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = HeroColors.TextBody,
+            )
+            Text(
+                text = "갤럭시 핏 또는 스마트 워치를 연결해주세요.\nSamsung Health에서 Health Connect(「애플리케이션」) 데이터 공유를 허용하고, Health Connect 앱이 설치되어 있어야 합니다.",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = HeroColors.TextBody,
+                lineHeight = 26.sp,
+            )
+
+            DeviceConnectionRow(
+                icon = Icons.Outlined.Watch,
+                title = "기기 연결",
+                state = status.device,
+                onClick = onOpenDevice,
+            )
+            Divider()
+            DeviceConnectionRow(
+                icon = Icons.Outlined.MonitorHeart,
+                title = "헬스 앱 연결",
+                state = status.healthApp,
+                onClick = onOpenHealthConnect,
+            )
+            Divider()
+            DeviceConnectionRow(
+                icon = Icons.Outlined.SignalCellularAlt,
+                title = "LTE 통신",
+                state = status.lte,
+                onClick = onOpenHealthConnect,
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        if (status.healthApp == ConnectionBadgeState.Disconnected) {
+            HeroSecondaryButton(
+                text = "Health Connect 설정 열기",
+                onClick = onOpenHealthConnect,
+            )
+            Spacer(Modifier.height(16.dp))
+        }
+
+        if (lastSnapshot?.bluetoothWatchBonded == true && lastSnapshot?.hasHeartRate != true) {
+            HeroSecondaryButton(
+                text = "상시 심박 측정 설정하기",
+                onClick = { showHrGuide = true },
+            )
+            Spacer(Modifier.height(16.dp))
+        }
+
+        HeroPrimaryButton(
+            text = "히어로 시작하기",
+            onClick = {
+                when {
+                    status.isChecking -> Unit
+                    status.device == ConnectionBadgeState.Disconnected -> onDeviceDisconnected()
+                    status.allConnected -> onStart()
+                    else -> onOpenHealthConnect()
+                }
+            },
+            enabled = !status.isChecking,
+        )
+        }
+    }
+}
+
+@Composable
+private fun DeviceConnectionRow(
+    icon: ImageVector,
+    title: String,
+    state: ConnectionBadgeState,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(HeroColors.StatusCardNormal),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = HeroColors.Primary, modifier = Modifier.size(24.dp))
+        }
+        Text(
+            text = title,
+            modifier = Modifier.weight(1f),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = HeroColors.TextBody,
+        )
+        ConnectionBadge(state)
+    }
+}
+
+@Composable
+private fun Divider() {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(HeroColors.Border),
+    )
+}
