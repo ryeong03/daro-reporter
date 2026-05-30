@@ -44,6 +44,7 @@ import app.hero.heronative.health.SamsungHealthNavigator
 import app.hero.heronative.monitoring.MonitoringScheduler
 import app.hero.heronative.ui.components.HeroDashedAddButton
 import app.hero.heronative.ui.components.HeroPrimaryButton
+import app.hero.heronative.ui.components.HeroScreenTopBar
 import app.hero.heronative.ui.theme.HeroColors
 import app.hero.heronative.viewmodel.UserViewModel
 import kotlinx.coroutines.delay
@@ -127,6 +128,7 @@ fun OnboardingScreen(
         1 -> StepIntro(onStart = { step = 2 })
         5 -> DeviceConnectionStep(
             healthManager = healthManager,
+            onBack = { step = 4 },
             onOpenHealthConnect = openHealthConnect,
             onOpenDevice = {
                 if (!SamsungHealthNavigator.openDeviceManager(ctx)) {
@@ -145,12 +147,16 @@ fun OnboardingScreen(
                 .fillMaxSize()
                 .background(HeroColors.Background),
         ) {
+            HeroScreenTopBar(
+                showBack = true,
+                onBack = { if (step > 2) step -= 1 else step = 1 },
+            )
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp)
-                    .padding(top = 65.dp, bottom = 24.dp),
+                    .padding(bottom = 24.dp),
             ) {
                 OnboardingProgressBar(currentStep = step - 1)
                 Spacer(Modifier.height(24.dp))

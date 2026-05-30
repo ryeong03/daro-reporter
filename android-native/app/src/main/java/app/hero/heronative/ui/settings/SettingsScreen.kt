@@ -13,12 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,6 +32,7 @@ import app.hero.heronative.data.UserSession
 import app.hero.heronative.data.formatPhoneDisplay
 import app.hero.heronative.monitoring.MonitoringReset
 import app.hero.heronative.ui.components.HeroPrimaryButton
+import app.hero.heronative.ui.components.HeroScreenTopBar
 import app.hero.heronative.ui.theme.HeroColors
 import app.hero.heronative.viewmodel.UserViewModel
 import kotlinx.coroutines.launch
@@ -47,6 +43,7 @@ fun SettingsScreen(
     session: UserSession,
     userViewModel: UserViewModel,
     onBack: () -> Unit,
+    onNavigateHome: () -> Unit,
     onOpenMonitoringSettings: () -> Unit,
     onOpenGuardians: () -> Unit,
     onOpenAiCallHistory: () -> Unit,
@@ -82,21 +79,14 @@ fun SettingsScreen(
             .background(HeroColors.Background)
             .verticalScroll(rememberScrollState()),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(top = 65.dp, bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
-            }
-            Spacer(Modifier.weight(1f))
-            IconButton(onClick = onOpenMonitoringSettings, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Outlined.Settings, contentDescription = "설정", tint = HeroColors.TextPrimary)
-            }
-        }
+        HeroScreenTopBar(
+            showBack = true,
+            onBack = onBack,
+            showHome = true,
+            onNavigateHome = onNavigateHome,
+            showSettings = true,
+            onOpenSettings = onOpenMonitoringSettings,
+        )
 
         ProfileCard(modifier = Modifier.padding(horizontal = 24.dp)) {
             Text(

@@ -39,6 +39,12 @@ fun HeroNavHost() {
         else -> {
             key(current.userId) {
                 val navController = rememberNavController()
+                val navigateToHome: () -> Unit = {
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
                 NavHost(navController = navController, startDestination = "home") {
                     composable("home") {
                         HomeScreen(
@@ -51,6 +57,7 @@ fun HeroNavHost() {
                             session = current,
                             userViewModel = userViewModel,
                             onBack = { navController.popBackStack() },
+                            onNavigateHome = navigateToHome,
                             onOpenMonitoringSettings = { navController.navigate("monitoring_settings") },
                             onOpenGuardians = { navController.navigate("guardians") },
                             onOpenAiCallHistory = { navController.navigate("ai_call_history") },
@@ -60,17 +67,20 @@ fun HeroNavHost() {
                         MonitoringSettingsScreen(
                             session = current,
                             onBack = { navController.popBackStack() },
+                            onNavigateHome = navigateToHome,
                         )
                     }
                     composable("guardians") {
                         GuardianListScreen(
                             session = current,
                             onBack = { navController.popBackStack() },
+                            onNavigateHome = navigateToHome,
                         )
                     }
                     composable("ai_call_history") {
                         AiCallHistoryScreen(
                             onBack = { navController.popBackStack() },
+                            onNavigateHome = navigateToHome,
                         )
                     }
                 }

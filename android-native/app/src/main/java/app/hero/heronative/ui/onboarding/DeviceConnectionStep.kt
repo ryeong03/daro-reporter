@@ -43,6 +43,7 @@ import app.hero.heronative.health.HealthConnectManager
 import app.hero.heronative.health.SamsungHealthNavigator
 import app.hero.heronative.monitoring.ConnectionStatusRefresher
 import app.hero.heronative.ui.components.HeroPrimaryButton
+import app.hero.heronative.ui.components.HeroScreenTopBar
 import app.hero.heronative.ui.components.HeroSecondaryButton
 import app.hero.heronative.ui.home.ContinuousHeartRateGuideDialog
 import app.hero.heronative.ui.theme.HeroColors
@@ -67,6 +68,7 @@ data class DeviceConnectionStatus(
 @Composable
 fun DeviceConnectionStep(
     healthManager: HealthConnectManager,
+    onBack: () -> Unit,
     onOpenHealthConnect: () -> Unit,
     onOpenDevice: () -> Unit,
     onStart: () -> Unit,
@@ -135,10 +137,19 @@ fun DeviceConnectionStep(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(HeroColors.Background)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 100.dp),
+            .background(HeroColors.Background),
     ) {
+        HeroScreenTopBar(
+            showBack = true,
+            onBack = onBack,
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 48.dp),
+        ) {
         HeroLogoText()
         Spacer(Modifier.height(32.dp))
 
@@ -217,6 +228,7 @@ fun DeviceConnectionStep(
             },
             enabled = !status.isChecking,
         )
+        }
     }
 }
 

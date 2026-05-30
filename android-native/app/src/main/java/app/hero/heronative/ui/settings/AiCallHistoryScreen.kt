@@ -14,11 +14,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.PhoneMissed
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.hero.heronative.ui.components.HeroScreenTopBar
 import app.hero.heronative.ui.theme.HeroColors
 
 enum class AiCallResult(val label: String, val badgeColor: Color) {
@@ -52,6 +51,7 @@ private val sampleHistory = listOf(
 @Composable
 fun AiCallHistoryScreen(
     onBack: () -> Unit,
+    onNavigateHome: () -> Unit,
     items: List<AiCallHistoryItem> = sampleHistory,
 ) {
     Column(
@@ -60,24 +60,13 @@ fun AiCallHistoryScreen(
             .background(HeroColors.Surface)
             .verticalScroll(rememberScrollState()),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(top = 65.dp, bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
-            }
-            Text(
-                text = "AI 콜 이력",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = HeroColors.TextBody,
-                modifier = Modifier.padding(start = 12.dp),
-            )
-        }
+        HeroScreenTopBar(
+            title = "AI 콜 이력",
+            showBack = true,
+            onBack = onBack,
+            showHome = true,
+            onNavigateHome = onNavigateHome,
+        )
 
         SettingsSectionDivider()
 

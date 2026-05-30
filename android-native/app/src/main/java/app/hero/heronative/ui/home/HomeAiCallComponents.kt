@@ -2,15 +2,20 @@ package app.hero.heronative.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -152,13 +157,41 @@ fun HealthCenterBanner(modifier: Modifier = Modifier) {
     }
 }
 
-/** Figma 157:239 — 기기 미연결 안내 */
+/** Figma 157:239 — 기기 미연결 (157:240 딤 + 카드) */
 @Composable
 fun DeviceNotConnectedDialog(onConfirm: () -> Unit) {
-    HeroInfoDialog(
-        message = "기기가 연결되어있지 않아요.\n갤럭시 핏 또는 스마트 워치를 켜고\n내 휴대폰과 블루투스 연결해주세요",
-        onConfirm = onConfirm,
-    )
+    Dialog(
+        onDismissRequest = onConfirm,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(HeroColors.Overlay)
+                .clickable(onClick = onConfirm),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .shadow(4.dp, RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(HeroColors.Surface)
+                    .clickable(enabled = false) {}
+                    .padding(horizontal = 16.dp, vertical = 48.dp),
+            ) {
+                Text(
+                    text = "기기가 연결되어있지 않아요.\n갤럭시 핏 또는 스마트 워치를 켜고\n내 휴대폰과 블루투스 연결해주세요",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = HeroColors.TextBody,
+                    lineHeight = 29.sp,
+                    modifier = Modifier.padding(bottom = 24.dp),
+                )
+                HeroPrimaryButton(text = "확인", onClick = onConfirm)
+            }
+        }
+    }
 }
 
 /** Figma 156:499 — AI 콜 이상 없음 확인 */

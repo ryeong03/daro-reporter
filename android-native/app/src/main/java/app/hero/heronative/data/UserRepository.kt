@@ -1,13 +1,16 @@
 package app.hero.heronative.data
 
 import android.content.Context
+import app.hero.heronative.baseline.BaselineCalibrationManager
 import kotlinx.coroutines.flow.Flow
 import retrofit2.HttpException
 
 class UserRepository(
     context: Context,
     private val api: HeroApi = ApiClient.api,
-    private val store: UserStore = UserStore(context.applicationContext)
+    private val store: UserStore = UserStore(context.applicationContext),
+    private val baselineCalibration: BaselineCalibrationManager =
+        BaselineCalibrationManager(context.applicationContext),
 ) {
     fun observeSession(): Flow<UserSession?> = store.session
 
@@ -47,6 +50,7 @@ class UserRepository(
             )
             val session = toSession(res.user, deviceId)
             persist(session)
+            baselineCalibration.startForNewUser()
             Result.success(session)
         } catch (e: HttpException) {
             if (e.code() == 409) {
@@ -73,6 +77,7 @@ class UserRepository(
 
     suspend fun clearSession() {
         store.clear()
+        baselineCalibration.clear()
     }
 
     suspend fun fetchUserDetail(userId: String): Result<UserDetailResponse> = runCatching {

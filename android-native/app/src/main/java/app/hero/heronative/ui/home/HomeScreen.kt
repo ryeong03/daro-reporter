@@ -29,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.health.connect.client.PermissionController
+import app.hero.heronative.baseline.BaselineCalibrationManager
+import app.hero.heronative.baseline.BaselineCalibrationState
 import app.hero.heronative.data.UserSession
 import app.hero.heronative.health.BluetoothWatchDetector
 import app.hero.heronative.health.HealthConnectManager
@@ -43,6 +45,7 @@ import app.hero.heronative.monitoring.MonitoringScheduler
 import app.hero.heronative.monitoring.MonitoringServiceRequirements
 import app.hero.heronative.monitoring.MonitoringStateHolder
 import app.hero.heronative.monitoring.NetworkUtils
+import app.hero.heronative.ui.components.HeroScreenTopBar
 import app.hero.heronative.ui.detectionStyle
 import app.hero.heronative.ui.disconnectedStyle
 import app.hero.heronative.ui.theme.HeroColors
@@ -59,18 +62,32 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val snack = remember { SnackbarHostState() }
     val healthManager = remember { HealthConnectManager(appContext) }
+    val baselineManager = remember { BaselineCalibrationManager(appContext) }
+    val baseline by baselineManager.state.collectAsState(initial = BaselineCalibrationState())
     val ui by MonitoringStateHolder.state.collectAsState()
     var pendingOpenHealthConnect by remember { mutableStateOf(false) }
     var showAiCallDialog by remember { mutableStateOf(false) }
     var showDeviceDialog by remember { mutableStateOf(false) }
     var deviceHasHeartRate by remember { mutableStateOf(false) }
-    var watchDeviceConnected by remember { mutableStateOf(false) }
     var showHrGuide by remember { mutableStateOf(false) }
     var hrGuidePrompted by remember { mutableStateOf(false) }
 
     val bluetoothPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { /* 폴링 루프에서 재확인 */ }
+
+    LaunchedEffect(session.userId) {
+        baselineManager.ensureLegacyMigration()
+    }
+
+    if (baseline.pendingCompletionDialog && baseline.lastComputedBaselineBpm != null) {
+        BaselineMeasurementCompleteDialog(
+            baselineBpm = baseline.lastComputedBaselineBpm,
+            onConfirm = {
+                scope.launch { baselineManager.dismissCompletionDialog() }
+            },
+        )
+    }
 
     LaunchedEffect(session.userId) {
         BluetoothWatchDetector.requiredBluetoothPermission()?.let { permission ->
@@ -155,7 +172,6 @@ fun HomeScreen(
             dataSync.tick(session, serverSync = serverSync)
             val snapshot = ConnectionStatusRefresher.refresh(context, healthManager)
             deviceHasHeartRate = snapshot.hasHeartRate
-            watchDeviceConnected = snapshot.deviceConnected
             if (snapshot.bluetoothWatchBonded && !snapshot.hasHeartRate && !hrGuidePrompted) {
                 showHrGuide = true
                 hrGuidePrompted = true
@@ -164,6 +180,8 @@ fun HomeScreen(
                 LocationTrackerHolder.ensureStarted(context)
                 dataSync.refreshGpsStatus()
             }
+            val hrFlowing = deviceHasHeartRate || ui.heartRate > 0
+            baselineManager.onMeasurementTick(hrFlowing, healthManager)
             delay(DataSyncManager.HEALTH_SYNC_INTERVAL_MS)
         }
     }
@@ -179,24 +197,31 @@ fun HomeScreen(
         }
     }
 
+    val bluetoothWatchBonded = ui.bluetoothWatchBonded
     val healthAppConnected = ui.watchConnected
-    val deviceConnected = watchDeviceConnected
     val healthDataFlowing = deviceHasHeartRate || ui.heartRate > 0
-    val showHealthSyncHint = ui.heartRate <= 0 && (healthAppConnected || deviceConnected)
-    val networkConnected = NetworkUtils.hasInternet(context) || ui.lastSync != null
-    val isDisconnected = !deviceConnected && ui.heartRate <= 0 && !deviceHasHeartRate
-    val stateInfo = if (isDisconnected && ui.detectionState == "normal") {
-        disconnectedStyle()
-    } else {
-        detectionStyle(ui.detectionState)
-    }
     val showAiBanner = ui.aiCallActive
     val showHealthCenterBanner = ui.healthCenterActive
+    val showHealthSyncHint = ui.heartRate <= 0 && (healthAppConnected || bluetoothWatchBonded)
+    val networkConnected = NetworkUtils.hasInternet(context) || ui.lastSync != null
+    // Figma 156:504 — BT 워치 미페어링 시 회색 홈 (HC 심박만으로는 미연결 화면 안 띄움)
+    val isBaselineMeasuring = baseline.isMeasuring
+    val isBaselineStopped = isBaselineMeasuring && !healthDataFlowing
+    val showDisconnectedHome = !bluetoothWatchBonded &&
+        ui.detectionState == "normal" &&
+        !showAiBanner &&
+        !showHealthCenterBanner &&
+        !isBaselineMeasuring
+    val stateInfo = when {
+        isBaselineStopped -> disconnectedStyle()
+        showDisconnectedHome -> disconnectedStyle()
+        else -> detectionStyle(ui.detectionState)
+    }
 
     val openDeviceFlow: () -> Unit = {
         when {
-            !deviceConnected -> showDeviceDialog = true
-            !deviceHasHeartRate -> showHrGuide = true
+            !bluetoothWatchBonded -> showDeviceDialog = true
+            !healthDataFlowing -> showHrGuide = true
             else -> {
                 if (!SamsungHealthNavigator.openDeviceManager(context)) {
                     scope.launch { snack.showSnackbar("Galaxy Wearable 또는 Samsung Health를 설치해주세요") }
@@ -208,11 +233,26 @@ fun HomeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(HeroColors.Background)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
-            .padding(top = 65.dp, bottom = 24.dp),
+            .background(HeroColors.Background),
     ) {
+        HeroScreenTopBar(
+            showBack = false,
+            showHome = true,
+            homeSelected = true,
+            showSettings = true,
+            onOpenSettings = onOpenSettings,
+        )
+        when {
+            isBaselineStopped -> BaselineMeasurementStoppedBanner()
+            isBaselineMeasuring -> BaselineMeasuringBanner(calibration = baseline)
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp),
+        ) {
         if (showHealthCenterBanner) {
             HealthCenterBanner()
             Spacer(Modifier.height(24.dp))
@@ -259,13 +299,13 @@ fun HomeScreen(
                 ConnectionItem(
                     icon = HomeConnectionIcons.Device,
                     title = "기기 연결",
-                    connected = deviceConnected,
+                    connected = bluetoothWatchBonded,
                     onClick = openDeviceFlow,
                 ),
                 ConnectionItem(
                     icon = HomeConnectionIcons.HealthApp,
                     title = "헬스 앱 연결",
-                    connected = healthAppConnected && healthDataFlowing,
+                    connected = healthAppConnected,
                     onClick = openHealthConnect,
                 ),
                 ConnectionItem(
@@ -287,6 +327,7 @@ fun HomeScreen(
             )
         }
         SnackbarHost(hostState = snack)
+        }
     }
 }
 
