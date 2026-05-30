@@ -33,6 +33,7 @@ import app.hero.heronative.data.UserSession
 import app.hero.heronative.health.BluetoothWatchDetector
 import app.hero.heronative.health.HealthConnectManager
 import app.hero.heronative.health.HealthConnectNavigator
+import app.hero.heronative.health.SamsungHealthNavigator
 import app.hero.heronative.location.LocationProvider
 import app.hero.heronative.monitoring.ConnectionStatusRefresher
 import app.hero.heronative.monitoring.DataSyncManager
@@ -64,6 +65,8 @@ fun HomeScreen(
     var showDeviceDialog by remember { mutableStateOf(false) }
     var deviceHasHeartRate by remember { mutableStateOf(false) }
     var watchDeviceConnected by remember { mutableStateOf(false) }
+    var showHrGuide by remember { mutableStateOf(false) }
+    var hrGuidePrompted by remember { mutableStateOf(false) }
 
     val bluetoothPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -103,6 +106,34 @@ fun HomeScreen(
         }
     }
 
+    val openHealthConnect: () -> Unit = {
+        pendingOpenHealthConnect = true
+        scope.launch {
+            HealthConnectNavigator.openSettingsOrRequestPermissions(
+                context = context,
+                healthManager = healthManager,
+                permissionLauncher = hcPermissionLauncher,
+                onUnavailable = {
+                    pendingOpenHealthConnect = false
+                    scope.launch { snack.showSnackbar("Health Connect 앱을 설치해주세요") }
+                },
+            )
+        }
+    }
+
+    if (showHrGuide) {
+        ContinuousHeartRateGuideDialog(
+            onOpenGalaxyWearable = {
+                if (!SamsungHealthNavigator.openGalaxyWearable(context)) {
+                    SamsungHealthNavigator.openSamsungHealth(context)
+                }
+            },
+            onOpenHealthConnect = openHealthConnect,
+            onOpenSamsungHealth = { SamsungHealthNavigator.openSamsungHealth(context) },
+            onDismiss = { showHrGuide = false },
+        )
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { _ ->
@@ -121,6 +152,10 @@ fun HomeScreen(
             val snapshot = ConnectionStatusRefresher.refresh(context, healthManager)
             deviceHasHeartRate = snapshot.hasHeartRate
             watchDeviceConnected = snapshot.deviceConnected
+            if (snapshot.bluetoothWatchBonded && !snapshot.hasHeartRate && !hrGuidePrompted) {
+                showHrGuide = true
+                hrGuidePrompted = true
+            }
             if (snapshot.hasHeartRate) {
                 DataSyncManager(context).pollHeartRate()
             }
@@ -129,21 +164,6 @@ fun HomeScreen(
                 DataSyncManager(context).refreshGpsStatus()
             }
             delay(2_000)
-        }
-    }
-
-    val openHealthConnect: () -> Unit = {
-        pendingOpenHealthConnect = true
-        scope.launch {
-            HealthConnectNavigator.openSettingsOrRequestPermissions(
-                context = context,
-                healthManager = healthManager,
-                permissionLauncher = hcPermissionLauncher,
-                onUnavailable = {
-                    pendingOpenHealthConnect = false
-                    scope.launch { snack.showSnackbar("Health Connect 앱을 설치해주세요") }
-                },
-            )
         }
     }
 
@@ -172,13 +192,7 @@ fun HomeScreen(
 
     val openDeviceFlow: () -> Unit = {
         when {
-            deviceConnected && ui.bluetoothWatchBonded && !healthAppConnected -> {
-                scope.launch {
-                    snack.showSnackbar(
-                        "워치: ${BluetoothWatchDetector.bondedWatchNames(context).joinToString()}",
-                    )
-                }
-            }
+            ui.bluetoothWatchBonded && !deviceHasHeartRate -> showHrGuide = true
             !deviceConnected -> showDeviceDialog = true
             else -> openHealthConnect()
         }

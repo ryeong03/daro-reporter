@@ -72,6 +72,9 @@
     <!-- Health Connect 앱 설치 여부 확인 -->
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <package android:name="com.sec.android.app.shealth" />
+        <package android:name="com.samsung.android.app.watchmanager" />
+        <package android:name="com.samsung.android.wearable" />
     </queries>
 
 </manifest>
