@@ -1,12 +1,23 @@
 package app.hero.heronative.ui.home
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,14 +42,23 @@ fun ContinuousHeartRateGuideDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .padding(horizontal = 24.dp)
-                .padding(vertical = 8.dp),
+                .fillMaxSize()
+                .background(HeroColors.Overlay)
+                .clickable(onClick = onDismiss),
+            contentAlignment = Alignment.Center,
         ) {
             Column(
                 modifier = Modifier
-                    .padding(bottom = 16.dp),
+                    .padding(horizontal = 24.dp)
+                    .shadow(4.dp, RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(HeroColors.Surface)
+                    .clickable(enabled = false) {}
+                    .padding(horizontal = 24.dp, vertical = 24.dp)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
             ) {
                 Text(
                     text = "상시 심박 측정 설정",
@@ -73,26 +93,27 @@ fun ContinuousHeartRateGuideDialog(
                     color = HeroColors.TextSecondary,
                     lineHeight = 22.sp,
                 )
+                Spacer(Modifier.height(20.dp))
+                HeroPrimaryButton(
+                    text = "Galaxy Wearable 열기",
+                    onClick = onOpenGalaxyWearable,
+                )
+                Spacer(Modifier.height(8.dp))
+                HeroSecondaryButton(
+                    text = "Health Connect 설정 열기",
+                    onClick = onOpenHealthConnect,
+                )
+                Spacer(Modifier.height(8.dp))
+                HeroSecondaryButton(
+                    text = "Samsung Health 열기",
+                    onClick = onOpenSamsungHealth,
+                )
+                Spacer(Modifier.height(8.dp))
+                HeroSecondaryButton(
+                    text = "닫기",
+                    onClick = onDismiss,
+                )
             }
-            HeroPrimaryButton(
-                text = "Galaxy Wearable 열기",
-                onClick = onOpenGalaxyWearable,
-            )
-            Spacer(Modifier.height(8.dp))
-            HeroSecondaryButton(
-                text = "Health Connect 설정 열기",
-                onClick = onOpenHealthConnect,
-            )
-            Spacer(Modifier.height(8.dp))
-            HeroSecondaryButton(
-                text = "Samsung Health 열기",
-                onClick = onOpenSamsungHealth,
-            )
-            Spacer(Modifier.height(8.dp))
-            HeroSecondaryButton(
-                text = "닫기",
-                onClick = onDismiss,
-            )
         }
     }
 }

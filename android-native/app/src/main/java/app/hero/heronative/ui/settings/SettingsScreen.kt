@@ -43,7 +43,6 @@ fun SettingsScreen(
     session: UserSession,
     userViewModel: UserViewModel,
     onBack: () -> Unit,
-    onNavigateHome: () -> Unit,
     onOpenMonitoringSettings: () -> Unit,
     onOpenGuardians: () -> Unit,
     onOpenAiCallHistory: () -> Unit,
@@ -82,8 +81,6 @@ fun SettingsScreen(
         HeroScreenTopBar(
             showBack = true,
             onBack = onBack,
-            showHome = true,
-            onNavigateHome = onNavigateHome,
             showSettings = true,
             onOpenSettings = onOpenMonitoringSettings,
         )

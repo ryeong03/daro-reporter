@@ -1,5 +1,6 @@
 package app.hero.heronative.viewmodel
 
+import app.hero.heronative.data.PhoneAlreadyRegisteredException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -11,10 +12,15 @@ import retrofit2.HttpException
 /** ViewModel에서 UI로 전달하는 사용자 메시지 */
 internal object UserViewModelMessages {
     const val REGISTER_FAILED = "등록에 실패했습니다. 입력 정보를 확인해주세요"
+    const val PHONE_ALREADY_REGISTERED =
+        "이미 등록된 전화번호입니다. 다른 번호를 사용하거나 잠시 후 다시 시도해주세요"
 
     private val json = Json { ignoreUnknownKeys = true }
 
     fun registerError(cause: Throwable?): String {
+        if (cause is PhoneAlreadyRegisteredException) {
+            return PHONE_ALREADY_REGISTERED
+        }
         if (cause is IllegalArgumentException) {
             return cause.message?.takeIf { it.isNotBlank() } ?: REGISTER_FAILED
         }

@@ -51,7 +51,6 @@ private val sampleHistory = listOf(
 @Composable
 fun AiCallHistoryScreen(
     onBack: () -> Unit,
-    onNavigateHome: () -> Unit,
     items: List<AiCallHistoryItem> = sampleHistory,
 ) {
     Column(
@@ -64,8 +63,6 @@ fun AiCallHistoryScreen(
             title = "AI 콜 이력",
             showBack = true,
             onBack = onBack,
-            showHome = true,
-            onNavigateHome = onNavigateHome,
         )
 
         SettingsSectionDivider()

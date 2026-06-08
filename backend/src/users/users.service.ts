@@ -17,16 +17,26 @@ export class UsersService {
     const { name, phone, device_id, gender, birth_date, guardians, heart_rate_history } = payload;
     const baseline = this.baselineService.calculateBaseline(heart_rate_history);
 
-    const { data, error } = await db
+    // 프로토타입: 같은 번호로 반복 가입 허용 — phone 충돌 시 타임스탬프 suffix 추가
+    let storedPhone = phone;
+    let { data, error } = await db
       .from('users')
-      .insert({ name, phone, device_id, gender, birth_date, baseline_bpm: baseline })
+      .insert({ name, phone: storedPhone, device_id, gender, birth_date, baseline_bpm: baseline })
       .select()
       .single();
 
+    if (error?.code === '23505') {
+      storedPhone = `${phone}_${Date.now()}`;
+      const retry = await db
+        .from('users')
+        .insert({ name, phone: storedPhone, device_id, gender, birth_date, baseline_bpm: baseline })
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
     if (error) {
-      if (error.code === '23505') {
-        throw new ConflictException('Phone already registered');
-      }
       this.logger.error('Register error', error);
       throw new Error('DB error');
     }
@@ -41,7 +51,20 @@ export class UsersService {
       await db.from('guardians').insert(guardianRows);
     }
 
-    return { user: data };
+    return { user: { ...data, phone } };
+  }
+
+  async getUserByPhone(phone: string) {
+    const db = this.supabaseService.db;
+
+    const { data: user, error } = await db
+      .from('users')
+      .select('*')
+      .eq('phone', phone.trim())
+      .single();
+
+    if (error || !user) throw new NotFoundException('User not found');
+    return { user };
   }
 
   async getUserDetail(id: string) {

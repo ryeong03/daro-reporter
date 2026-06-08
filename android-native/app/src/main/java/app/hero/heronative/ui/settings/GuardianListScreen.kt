@@ -40,7 +40,6 @@ import app.hero.heronative.ui.theme.HeroColors
 fun GuardianListScreen(
     session: UserSession,
     onBack: () -> Unit,
-    onNavigateHome: () -> Unit,
 ) {
     val context = LocalContext.current
     val repository = remember { UserRepository(context) }
@@ -63,8 +62,6 @@ fun GuardianListScreen(
             title = "내 보호자 목록",
             showBack = true,
             onBack = onBack,
-            showHome = true,
-            onNavigateHome = onNavigateHome,
         )
 
         when {
