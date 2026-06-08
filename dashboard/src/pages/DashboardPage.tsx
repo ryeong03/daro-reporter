@@ -46,6 +46,20 @@ export function DashboardPage() {
         <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1e293b' }}>농업인 현황</h1>
         <span style={{ color: '#64748b', fontSize: 14 }}>총 {users.length}명</span>
       </div>
+      {/* 요약 카드 */}
+<div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+  {[
+    { label: '전체 농업인', value: users.length, color: '#2563eb', bg: '#eff6ff' },
+    { label: '정상', value: users.filter(u => u.status === 'normal').length, color: '#16a34a', bg: '#f0fdf4' },
+    { label: '주의', value: users.filter(u => u.status === 'warning').length, color: '#d97706', bg: '#fffbeb' },
+    { label: '응급', value: users.filter(u => u.status === 'emergency').length, color: '#dc2626', bg: '#fef2f2' },
+  ].map(card => (
+    <div key={card.label} style={{ flex: 1, background: card.bg, borderRadius: 12, padding: '20px 24px' }}>
+      <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>{card.label}</div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: card.color }}>{card.value}</div>
+    </div>
+  ))}
+</div>
 
       <KakaoMapView markers={mapMarkers} height={320} />
 
