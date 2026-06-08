@@ -55,6 +55,34 @@ export function UserDetailPage() {
     <div>
       <Link to="/" style={{ color: '#64748b', textDecoration: 'none', fontSize: 14 }}>← 목록으로</Link>
 
+      {/* 상단 알림 배너 */}
+      <div style={{
+        background: '#fef2f2',
+        border: '1px solid #fecaca',
+        borderRadius: 8,
+        padding: '12px 20px',
+        marginTop: 16,
+        marginBottom: 20,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+      }}>
+        <span style={{ color: '#dc2626', fontWeight: 600, fontSize: 14 }}>
+          🔴 이상 감지 발생 중 — AI 콜 발신 중 · 오후 2:41
+        </span>
+        <button style={{
+          background: '#dc2626',
+          color: 'white',
+          border: 'none',
+          borderRadius: 6,
+          padding: '6px 16px',
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}>
+          출동
+        </button>
+      </div>
+
       <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         {/* 개인정보 카드 */}
         <div style={cardStyle}>
@@ -81,6 +109,14 @@ export function UserDetailPage() {
             <span style={{ color: '#94a3b8' }}>등록된 보호자 없음</span>
           )}
         </div>
+      </div>
+
+      {/* 현재 상태 카드 */}
+      <div style={{ ...cardStyle, marginTop: 24, background: '#fef2f2', border: '1px solid #fecaca' }}>
+        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#dc2626' }}>🚨 현재 상태 — 이상감지</h3>
+        <div style={infoRow}><span style={labelStyle}>심박수</span><span style={{ color: '#dc2626', fontWeight: 700, fontSize: 18 }}>138 bpm</span></div>
+        <div style={infoRow}><span style={labelStyle}>낙상 감지</span><span style={{ color: '#dc2626', fontWeight: 600 }}>감지됨</span></div>
+        <div style={infoRow}><span style={labelStyle}>감지 시각</span><span>오후 2:41 (4분 전)</span></div>
       </div>
 
       <div style={{ marginTop: 24 }}>
@@ -117,6 +153,19 @@ export function UserDetailPage() {
         ) : (
           <span style={{ color: '#94a3b8' }}>이력 없음</span>
         )}
+      </div>
+
+      {/* 하단 버튼 */}
+      <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+        <button style={{ flex: 1, background: '#dc2626', color: 'white', border: 'none', borderRadius: 8, padding: '14px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+          🚨 출동 지시
+        </button>
+        <button style={{ flex: 1, background: 'white', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: 8, padding: '14px', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
+          📞 보호자 전화
+        </button>
+        <button style={{ flex: 1, background: 'white', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 8, padding: '14px', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
+          ✅ 오탐 처리
+        </button>
       </div>
     </div>
   );
