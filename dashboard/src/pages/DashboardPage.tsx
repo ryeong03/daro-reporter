@@ -42,6 +42,24 @@ export function DashboardPage() {
 
   return (
     <div>
+      {/* 상단 알림 배너 */}
+{users.some(u => u.status === 'emergency') && (
+  <div style={{
+    background: '#fef2f2',
+    border: '1px solid #fecaca',
+    borderRadius: 8,
+    padding: '12px 20px',
+    marginBottom: 20,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  }}>
+    <span style={{ color: '#dc2626', fontWeight: 600, fontSize: 14 }}>
+      🔴 이상 감지 — {users.find(u => u.status === 'emergency')?.name} | AI 홈 발신 중
+    </span>
+    <span style={{ color: '#dc2626', fontSize: 13, cursor: 'pointer' }}>확인 →</span>
+  </div>
+)}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: '#1e293b' }}>농업인 현황</h1>
         <span style={{ color: '#64748b', fontSize: 14 }}>총 {users.length}명</span>
@@ -70,6 +88,7 @@ export function DashboardPage() {
             <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
               <th style={thStyle}>이름</th>
               <th style={thStyle}>연락처</th>
+              <th style={thStyle}>나이</th>
               <th style={thStyle}>기준선(bpm)</th>
               <th style={thStyle}>상태</th>
               <th style={thStyle}>최근 위치</th>
@@ -83,6 +102,7 @@ export function DashboardPage() {
                 <tr key={user.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                   <td style={tdStyle}>{user.name}</td>
                   <td style={tdStyle}>{user.phone}</td>
+                  <td style={tdStyle}>{user.age ?? '—'}</td>
                   <td style={tdStyle}>{user.baseline_bpm}</td>
                   <td style={tdStyle}>
                     <span style={{
