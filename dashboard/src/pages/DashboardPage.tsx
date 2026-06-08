@@ -92,6 +92,7 @@ export function DashboardPage() {
               <th style={thStyle}>기준선(bpm)</th>
               <th style={thStyle}>상태</th>
               <th style={thStyle}>최근 위치</th>
+              <th style={thStyle}>최근 업데이트</th>
               <th style={thStyle}>상세</th>
             </tr>
           </thead>
@@ -140,6 +141,11 @@ export function DashboardPage() {
                       : '—'}
                   </td>
                   <td style={tdStyle}>
+                  <td style={tdStyle}>
+  {user.latest_location?.timestamp
+    ? new Date(user.latest_location.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+    : '—'}
+</td>
                     <Link to={`/users/${user.id}`} style={{ color: '#2563eb', textDecoration: 'none', fontSize: 13 }}>
                       상세보기 →
                     </Link>
