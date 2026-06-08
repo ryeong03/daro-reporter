@@ -100,7 +100,19 @@ export function DashboardPage() {
               const sc = statusColor(user.status);
               return (
                 <tr key={user.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={tdStyle}>{user.name}</td>
+                  <td style={tdStyle}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{
+      width: 32, height: 32, borderRadius: '50%',
+      background: user.status === 'emergency' ? '#dc2626' : user.status === 'warning' ? '#d97706' : '#16a34a',
+      color: 'white', fontWeight: 700, fontSize: 13,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      {user.name[0]}
+    </div>
+    {user.name}
+  </div>
+</td>
                   <td style={tdStyle}>{user.phone}</td>
                   <td style={tdStyle}>{user.age ?? '—'}</td>
                   <td style={{
