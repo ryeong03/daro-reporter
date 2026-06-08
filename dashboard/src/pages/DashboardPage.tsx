@@ -103,7 +103,13 @@ export function DashboardPage() {
                   <td style={tdStyle}>{user.name}</td>
                   <td style={tdStyle}>{user.phone}</td>
                   <td style={tdStyle}>{user.age ?? '—'}</td>
-                  <td style={tdStyle}>{user.baseline_bpm}</td>
+                  <td style={{
+  ...tdStyle,
+  color: user.status === 'emergency' ? '#dc2626' : user.status === 'warning' ? '#d97706' : '#1e293b',
+  fontWeight: user.status === 'emergency' ? 700 : 400,
+}}>
+  {user.baseline_bpm}
+</td>
                   <td style={tdStyle}>
                     <span style={{
                       background: sc.bg,
