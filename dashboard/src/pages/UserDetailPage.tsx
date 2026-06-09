@@ -128,6 +128,32 @@ export function UserDetailPage() {
   </div>
 )}
 
+      {/* AI 콜 이력 */}
+<div style={{ ...cardStyle, marginTop: 24 }}>
+  <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>AI 콜 이력</h3>
+  {alerts.length > 0 ? (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#dc2626', marginTop: 4, flexShrink: 0 }} />
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 14, color: '#dc2626' }}>이상 감지</div>
+          <div style={{ fontSize: 13, color: '#64748b' }}>
+            {new Date(alerts[0].created_at).toLocaleString('ko-KR')} · {alerts[0].event_type === 'fall' ? '낙상' : alerts[0].event_type === 'heatstroke' ? '열사병' : '실신'}
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563eb', marginTop: 4, flexShrink: 0 }} />
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>AI 콜 1차 발신</div>
+          <div style={{ fontSize: 13, color: '#64748b' }}>발신 중...</div>
+        </div>
+      </div>
+    </div>
+  ) : (
+    <span style={{ color: '#94a3b8' }}>콜 이력 없음</span>
+  )}
+</div>
       {/* 알림 이력 */}
       <div style={{ ...cardStyle, marginTop: 24 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>최근 알림 이력</h3>
