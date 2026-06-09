@@ -21,6 +21,35 @@ export function UserDetailPage() {
   const [user, setUser] = useState<UserDetail | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
+  const handleFalseAlarm = async () => {
+    if (!alerts[0]) return;
+    if (!window.confirm('오탐 처리하시겠습니까?')) return;
+    try {
+      await api.patch(`/alert/${alerts[0].id}`, { status: 'false_alarm' });
+      alert('오탐 처리되었습니다.');
+      window.location.reload();
+    } catch {
+      alert('처리 중 오류가 발생했습니다.');
+    }
+  };
+  const handleGuardianCall = () => {
+    if (user?.guardians[0]?.phone) {
+      window.open(`tel:${user.guardians[0].phone}`);
+    } else {
+      alert('등록된 보호자가 없습니다.');
+    }
+  };
+  const handleEmergency = async () => {
+  if (!alerts[0]) return;
+  if (!window.confirm('출동 지시하시겠습니까?')) return;
+  try {
+    await api.patch(`/alert/${alerts[0].id}`, { status: 'closed_emergency' });
+    alert('출동 지시가 완료되었습니다.');
+    window.location.reload();
+  } catch {
+    alert('처리 중 오류가 발생했습니다.');
+  }
+};
 
   useEffect(() => {
     Promise.all([
@@ -183,15 +212,15 @@ export function UserDetailPage() {
 
       {/* 하단 버튼 */}
       <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-        <button style={{ flex: 1, background: '#dc2626', color: 'white', border: 'none', borderRadius: 8, padding: '14px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
-          🚨 출동 지시
-        </button>
-        <button style={{ flex: 1, background: 'white', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: 8, padding: '14px', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
-          📞 보호자 전화
-        </button>
-        <button style={{ flex: 1, background: 'white', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 8, padding: '14px', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
-          ✅ 오탐 처리
-        </button>
+        <button onClick={handleEmergency} style={{ flex: 1, background: '#dc2626', color: 'white', border: 'none', borderRadius: 8, padding: '14px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+  🚨 출동 지시
+</button>
+        <button onClick={handleGuardianCall} style={{ flex: 1, background: 'white', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: 8, padding: '14px', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
+  📞 보호자 전화
+</button>
+        <button onClick={handleFalseAlarm} style={{ flex: 1, background: 'white', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 8, padding: '14px', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
+  ✅ 오탐 처리
+</button>
       </div>
     </div>
   );
