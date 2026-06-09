@@ -61,13 +61,14 @@ export function DashboardPage() {
         </div>
         {emergencyUser && (
           <div style={{
-            background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
+            background: '#fff1f2', border: '1.5px solid #fca5a5', borderRadius: 8,
             padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, maxWidth: 480,
+            boxShadow: '0 2px 8px rgba(220,38,38,0.1)',
           }}>
-            <span style={{ color: '#dc2626', fontWeight: 600, fontSize: 13 }}>
-              🔴 이상 감지 — {emergencyUser.name} | AI 홈 발신 중
+            <span style={{ color: '#dc2626', fontWeight: 700, fontSize: 13 }}>
+              🔴 이상 감지 — {emergencyUser.name} | AI 콜 발신 중
             </span>
-            <span style={{ color: '#dc2626', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>확인 →</span>
+            <span style={{ color: '#dc2626', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600 }}>확인 →</span>
           </div>
         )}
       </div>
@@ -82,7 +83,7 @@ export function DashboardPage() {
         ].map(card => (
           <div key={card.label} style={{
             flex: 1, background: card.bg, borderRadius: 12, padding: '20px 24px',
-            border: `1px solid ${card.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            border: `1px solid ${card.border}`, boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
           }}>
             <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>{card.label}</div>
             <div style={{ fontSize: 36, fontWeight: 800, color: card.color }}>{card.value}
@@ -95,7 +96,7 @@ export function DashboardPage() {
       {/* 2단 레이아웃 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         {/* 왼쪽: 농업인 현황 목록 */}
-        <div style={{ background: 'white', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <div style={{ background: 'white', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
             <span style={{ fontWeight: 600, fontSize: 15, color: '#1e293b' }}>농업인 현황 목록</span>
             <span onClick={() => setShowAll(!showAll)} style={{ color: '#2563eb', fontSize: 13, cursor: 'pointer' }}>
@@ -174,7 +175,7 @@ export function DashboardPage() {
         </div>
 
         {/* 오른쪽: 지도 */}
-        <div style={{ background: 'white', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <div style={{ background: 'white', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
             <span style={{ fontWeight: 600, fontSize: 15, color: '#1e293b' }}>지도 뷰 — 실시간 위치</span>
           </div>

@@ -13,15 +13,6 @@ function App() {
   return (
     <BrowserRouter>
       <Layout>
-        {isDev && (
-          <div style={{
-            background: '#eff6ff', color: '#2563eb', padding: '6px 16px',
-            fontSize: 12, fontWeight: 600, borderRadius: 6, marginBottom: 16,
-            display: 'inline-block',
-          }}>
-            DEV MODE
-          </div>
-        )}
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
