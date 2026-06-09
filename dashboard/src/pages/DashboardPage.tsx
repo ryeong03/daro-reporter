@@ -42,7 +42,13 @@ export function DashboardPage() {
   const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
   const emergencyUser = users.find(u => u.status === 'emergency');
-  const displayUsers = showAll ? users : users.slice(0, 5);
+
+  const sortedUsers = useMemo(() => {
+    const order: Record<string, number> = { emergency: 0, warning: 1, normal: 2 };
+    return [...users].sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3));
+  }, [users]);
+
+  const displayUsers = showAll ? sortedUsers : sortedUsers.slice(0, 5);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>불러오는 중...</div>;
 
@@ -54,17 +60,10 @@ export function DashboardPage() {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>홈 대시보드</h1>
           <div style={{ fontSize: 13, color: '#94a3b8' }}>{dateStr} · 실시간 현황</div>
         </div>
-        {/* 상단 알림 배너 */}
         {emergencyUser && (
           <div style={{
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: 8,
-            padding: '10px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            maxWidth: 480,
+            background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
+            padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, maxWidth: 480,
           }}>
             <span style={{ color: '#dc2626', fontWeight: 600, fontSize: 13 }}>
               🔴 이상 감지 — {emergencyUser.name} | AI 홈 발신 중
@@ -118,7 +117,10 @@ export function DashboardPage() {
               {displayUsers.map((user) => {
                 const sc = statusColor(user.status);
                 return (
-                  <tr key={user.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <tr key={user.id} style={{
+                    borderBottom: '1px solid #f1f5f9',
+                    background: user.status === 'emergency' ? '#fef2f2' : user.status === 'warning' ? '#fffbeb' : 'white',
+                  }}>
                     <td style={tdStyle}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{
@@ -129,11 +131,9 @@ export function DashboardPage() {
                         }}>
                           {user.name[0]}
                         </div>
-                        <div>
-                          <Link to={`/users/${user.id}`} style={{ color: '#1e293b', textDecoration: 'none', fontWeight: 500, fontSize: 14 }}>
-                            {user.name}
-                          </Link>
-                        </div>
+                        <Link to={`/users/${user.id}`} style={{ color: '#1e293b', textDecoration: 'none', fontWeight: 500, fontSize: 14 }}>
+                          {user.name}
+                        </Link>
                       </div>
                     </td>
                     <td style={tdStyle}>{user.age ? `${user.age}세` : '—'}</td>

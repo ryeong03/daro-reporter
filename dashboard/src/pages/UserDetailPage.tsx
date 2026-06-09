@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api, Alert, CallLog } from '../api/client';
 import { KakaoMapView } from '../components/KakaoMapView';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
 
 interface UserDetail {
   id: string;
@@ -21,35 +22,6 @@ export function UserDetailPage() {
   const [user, setUser] = useState<UserDetail | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
-  const handleFalseAlarm = async () => {
-    if (!alerts[0]) return;
-    if (!window.confirm('오탐 처리하시겠습니까?')) return;
-    try {
-      await api.patch(`/alert/${alerts[0].id}`, { status: 'false_alarm' });
-      alert('오탐 처리되었습니다.');
-      window.location.reload();
-    } catch {
-      alert('처리 중 오류가 발생했습니다.');
-    }
-  };
-  const handleGuardianCall = () => {
-    if (user?.guardians[0]?.phone) {
-      window.open(`tel:${user.guardians[0].phone}`);
-    } else {
-      alert('등록된 보호자가 없습니다.');
-    }
-  };
-  const handleEmergency = async () => {
-  if (!alerts[0]) return;
-  if (!window.confirm('출동 지시하시겠습니까?')) return;
-  try {
-    await api.patch(`/alert/${alerts[0].id}`, { status: 'closed_emergency' });
-    alert('출동 지시가 완료되었습니다.');
-    window.location.reload();
-  } catch {
-    alert('처리 중 오류가 발생했습니다.');
-  }
-};
 
   useEffect(() => {
     Promise.all([
@@ -64,17 +36,56 @@ export function UserDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const handleFalseAlarm = async () => {
+    if (!alerts[0]) return;
+    if (!window.confirm('오탐 처리하시겠습니까?')) return;
+    try {
+      await api.patch(`/alert/${alerts[0].id}`, { status: 'false_alarm' });
+      alert('오탐 처리되었습니다.');
+      window.location.reload();
+    } catch {
+      alert('처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleGuardianCall = () => {
+    if (user?.guardians[0]?.phone) {
+      window.open(`tel:${user.guardians[0].phone}`);
+    } else {
+      alert('등록된 보호자가 없습니다.');
+    }
+  };
+
+  const handleEmergency = async () => {
+    if (!alerts[0]) return;
+    if (!window.confirm('출동 지시하시겠습니까?')) return;
+    try {
+      await api.patch(`/alert/${alerts[0].id}`, { status: 'closed_emergency' });
+      alert('출동 지시가 완료되었습니다.');
+      window.location.reload();
+    } catch {
+      alert('처리 중 오류가 발생했습니다.');
+    }
+  };
+
   const mapMarkers = useMemo(() => {
     if (!user?.latest_location) return [];
-    return [
-      {
-        id: user.id,
-        name: user.name,
-        lat: user.latest_location.lat,
-        lng: user.latest_location.lng,
-        subtitle: `최근 위치 · ${new Date(user.latest_location.timestamp).toLocaleString('ko-KR')}`,
-      },
-    ];
+    return [{
+      id: user.id,
+      name: user.name,
+      lat: user.latest_location.lat,
+      lng: user.latest_location.lng,
+      subtitle: `최근 위치 · ${new Date(user.latest_location.timestamp).toLocaleString('ko-KR')}`,
+    }];
+  }, [user]);
+
+  const bpmData = useMemo(() => {
+    const baseline = user?.baseline_bpm || 75;
+    const hours = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+    return hours.map((time, i) => ({
+      time,
+      bpm: Math.round(baseline + (Math.random() * 10 - 5) + (i === hours.length - 1 ? 60 : 0)),
+    }));
   }, [user]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>불러오는 중...</div>;
@@ -85,142 +96,171 @@ export function UserDetailPage() {
       <Link to="/" style={{ color: '#64748b', textDecoration: 'none', fontSize: 14 }}>← 목록으로</Link>
 
       {/* 상단 알림 배너 */}
-      <div style={{
-        background: '#fef2f2',
-        border: '1px solid #fecaca',
-        borderRadius: 8,
-        padding: '12px 20px',
-        marginTop: 16,
-        marginBottom: 20,
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}>
-        <span style={{ color: '#dc2626', fontWeight: 600, fontSize: 14 }}>
-        🔴 이상 감지 발생 중 — {alerts[0]?.event_type === 'fall' ? '낙상' : alerts[0]?.event_type === 'heatstroke' ? '열사병' : '실신'} · {alerts[0] ? new Date(alerts[0].created_at).toLocaleString('ko-KR') : ''}
-        </span>
-        <button onClick={handleEmergency} style={{
-  background: '#dc2626',
-  color: 'white',
-  border: 'none',
-  borderRadius: 6,
-  padding: '6px 16px',
-  fontWeight: 600,
-  cursor: 'pointer',
-}}>
-  출동
-</button>
-      </div>
-
-      <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-        {/* 개인정보 카드 */}
-        <div style={cardStyle}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>{user.name}</h2>
-          <div style={infoRow}><span style={labelStyle}>연락처</span><span>{user.phone}</span></div>
-          <div style={infoRow}><span style={labelStyle}>성별</span><span>{user.gender === 'male' ? '남' : user.gender === 'female' ? '여' : '—'}</span></div>
-          <div style={infoRow}><span style={labelStyle}>생년월일</span><span>{user.birth_date || '—'}</span></div>
-          <div style={infoRow}><span style={labelStyle}>디바이스</span><span>{user.device_id}</span></div>
-          <div style={infoRow}><span style={labelStyle}>기준선</span><span>{user.baseline_bpm} bpm</span></div>
-          <div style={infoRow}><span style={labelStyle}>기준선 갱신</span><span>{new Date(user.baseline_updated_at).toLocaleDateString('ko-KR')}</span></div>
-        </div>
-
-        {/* 보호자 카드 */}
-        <div style={cardStyle}>
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>보호자</h3>
-          {user.guardians.length > 0 ? (
-            user.guardians.map((g, i) => (
-              <div key={i} style={{ ...infoRow, borderBottom: '1px solid #f1f5f9', paddingBottom: 8, marginBottom: 8 }}>
-                <span>{g.name} ({g.relation || '관계 미입력'})</span>
-                <span style={{ color: '#64748b' }}>{g.phone}</span>
-              </div>
-            ))
-          ) : (
-            <span style={{ color: '#94a3b8' }}>등록된 보호자 없음</span>
-          )}
-        </div>
-      </div>
-
-      {/* 현재 상태 카드 */}
       {alerts.length > 0 && (
-  <div style={{ ...cardStyle, marginTop: 24, background: '#fef2f2', border: '1px solid #fecaca' }}>
-    <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#dc2626' }}>🚨 현재 상태 — 이상감지</h3>
-    <div style={infoRow}>
-      <span style={labelStyle}>이벤트 유형</span>
-      <span style={{ color: '#dc2626', fontWeight: 700, fontSize: 16 }}>
-        {alerts[0].event_type === 'heatstroke' ? '열사병' : alerts[0].event_type === 'syncope' ? '실신' : '낙상'}
-      </span>
-    </div>
-    <div style={infoRow}>
-      <span style={labelStyle}>감지 시각</span>
-      <span>{new Date(alerts[0].created_at).toLocaleString('ko-KR')}</span>
-    </div>
-  </div>
-)}
+        <div style={{
+          background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
+          padding: '12px 20px', marginTop: 16, marginBottom: 20,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span style={{ color: '#dc2626', fontWeight: 600, fontSize: 14 }}>
+            🔴 이상 감지 발생 중 — {alerts[0]?.event_type === 'fall' ? '낙상' : alerts[0]?.event_type === 'heatstroke' ? '열사병' : '실신'} · {alerts[0] ? new Date(alerts[0].created_at).toLocaleString('ko-KR') : ''}
+          </span>
+          <button onClick={handleEmergency} style={{
+            background: '#dc2626', color: 'white', border: 'none',
+            borderRadius: 6, padding: '6px 16px', fontWeight: 600, cursor: 'pointer',
+          }}>출동</button>
+        </div>
+      )}
 
-      {/* AI 콜 이력 */}
-<div style={{ ...cardStyle, marginTop: 24 }}>
-  <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>AI 콜 이력</h3>
-  {alerts.length > 0 ? (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#dc2626', marginTop: 4, flexShrink: 0 }} />
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 14, color: '#dc2626' }}>이상 감지</div>
-          <div style={{ fontSize: 13, color: '#64748b' }}>
-            {new Date(alerts[0].created_at).toLocaleString('ko-KR')} · {alerts[0].event_type === 'fall' ? '낙상' : alerts[0].event_type === 'heatstroke' ? '열사병' : '실신'}
+      {/* 2단 레이아웃 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+
+        {/* 왼쪽 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* 개인정보 */}
+          <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: '50%', background: '#1e293b',
+                color: 'white', fontWeight: 700, fontSize: 18,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>{user.name[0]}</div>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700 }}>{user.name}</div>
+                <div style={{ fontSize: 13, color: '#94a3b8' }}>
+                  {user.gender === 'male' ? '남' : user.gender === 'female' ? '여' : '—'} · {user.birth_date ? `${new Date().getFullYear() - new Date(user.birth_date).getFullYear()}세` : '—'}
+                </div>
+              </div>
+            </div>
+            <div style={infoRow}><span style={labelStyle}>연락처</span><span>{user.phone}</span></div>
+            <div style={infoRow}><span style={labelStyle}>디바이스</span><span>{user.device_id}</span></div>
+            <div style={infoRow}><span style={labelStyle}>기준선</span><span>{user.baseline_bpm} bpm</span></div>
+            <div style={infoRow}><span style={labelStyle}>기준선 갱신</span><span>{new Date(user.baseline_updated_at).toLocaleDateString('ko-KR')}</span></div>
+          </div>
+
+          {/* 현재 상태 카드 */}
+          {alerts.length > 0 && (
+            <div style={{ ...cardStyle, background: '#fef2f2', border: '1px solid #fecaca' }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: '#dc2626' }}>🚨 현재 상태 — 이상감지</h3>
+              <div style={infoRow}>
+                <span style={labelStyle}>이벤트 유형</span>
+                <span style={{ color: '#dc2626', fontWeight: 700 }}>
+                  {alerts[0].event_type === 'fall' ? '낙상' : alerts[0].event_type === 'heatstroke' ? '열사병' : '실신'}
+                </span>
+              </div>
+              <div style={infoRow}>
+                <span style={labelStyle}>감지 시각</span>
+                <span>{new Date(alerts[0].created_at).toLocaleString('ko-KR')}</span>
+              </div>
+            </div>
+          )}
+
+          {/* AI 콜 이력 */}
+          <div style={cardStyle}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>AI 콜 이력</h3>
+            {alerts.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#dc2626', marginTop: 4, flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: '#dc2626' }}>이상 감지</div>
+                    <div style={{ fontSize: 13, color: '#64748b' }}>
+                      {new Date(alerts[0].created_at).toLocaleString('ko-KR')} · {alerts[0].event_type === 'fall' ? '낙상' : alerts[0].event_type === 'heatstroke' ? '열사병' : '실신'}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563eb', marginTop: 4, flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>AI 콜 1차 발신</div>
+                    <div style={{ fontSize: 13, color: '#64748b' }}>발신 중...</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <span style={{ color: '#94a3b8' }}>콜 이력 없음</span>
+            )}
+          </div>
+
+          {/* 최근 알림 이력 */}
+          <div style={cardStyle}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>과거 이벤트 이력</h3>
+            {alerts.length > 0 ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <th style={{ ...thStyle, paddingLeft: 0 }}>시각</th>
+                    <th style={thStyle}>유형</th>
+                    <th style={thStyle}>상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {alerts.map((a) => (
+                    <tr key={a.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                      <td style={{ ...tdStyle, paddingLeft: 0 }}>{new Date(a.created_at).toLocaleString('ko-KR')}</td>
+                      <td style={tdStyle}>{a.event_type}</td>
+                      <td style={tdStyle}>{a.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <span style={{ color: '#94a3b8' }}>이력 없음</span>
+            )}
           </div>
         </div>
-      </div>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563eb', marginTop: 4, flexShrink: 0 }} />
-        <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>AI 콜 1차 발신</div>
-          <div style={{ fontSize: 13, color: '#64748b' }}>발신 중...</div>
+
+        {/* 오른쪽 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* 지도 */}
+          <div style={cardStyle}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>현재 위치</h3>
+            <KakaoMapView markers={mapMarkers} height={240} emptyMessage="아직 GPS 기록이 없습니다." />
+          </div>
+
+          {/* 심박수 그래프 */}
+          <div style={cardStyle}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>오늘 심박수 추이</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={bpmData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <Tooltip />
+                <ReferenceLine y={user?.baseline_bpm} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: '기준선', fill: '#94a3b8', fontSize: 11 }} />
+                <Line type="monotone" dataKey="bpm" stroke="#2563eb" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* 보호자 */}
+          <div style={cardStyle}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>보호자</h3>
+            {user.guardians.length > 0 ? (
+              user.guardians.map((g, i) => (
+                <div key={i} style={{ ...infoRow, borderBottom: '1px solid #f1f5f9', paddingBottom: 8, marginBottom: 8 }}>
+                  <span>{g.name} ({g.relation || '관계 미입력'})</span>
+                  <span style={{ color: '#64748b' }}>{g.phone}</span>
+                </div>
+              ))
+            ) : (
+              <span style={{ color: '#94a3b8' }}>등록된 보호자 없음</span>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
-  ) : (
-    <span style={{ color: '#94a3b8' }}>콜 이력 없음</span>
-  )}
-</div>
-      {/* 알림 이력 */}
-      <div style={{ ...cardStyle, marginTop: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>최근 알림 이력</h3>
-        {alerts.length > 0 ? (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ ...thStyle, paddingLeft: 0 }}>시각</th>
-                <th style={thStyle}>유형</th>
-                <th style={thStyle}>상태</th>
-              </tr>
-            </thead>
-            <tbody>
-              {alerts.map((a) => (
-                <tr key={a.id} style={{ borderBottom: '1px solid #f8fafc' }}>
-                  <td style={{ ...tdStyle, paddingLeft: 0 }}>{new Date(a.created_at).toLocaleString('ko-KR')}</td>
-                  <td style={tdStyle}>{a.event_type}</td>
-                  <td style={tdStyle}>{a.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <span style={{ color: '#94a3b8' }}>이력 없음</span>
-        )}
       </div>
 
       {/* 하단 버튼 */}
       <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
         <button onClick={handleEmergency} style={{ flex: 1, background: '#dc2626', color: 'white', border: 'none', borderRadius: 8, padding: '14px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
-  🚨 출동 지시
-</button>
+          🚨 출동 지시
+        </button>
         <button onClick={handleGuardianCall} style={{ flex: 1, background: 'white', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: 8, padding: '14px', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
-  📞 보호자 전화
-</button>
+          📞 보호자 전화
+        </button>
         <button onClick={handleFalseAlarm} style={{ flex: 1, background: 'white', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 8, padding: '14px', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
-  ✅ 오탐 처리
-</button>
+          ✅ 오탐 처리
+        </button>
       </div>
     </div>
   );
