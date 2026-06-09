@@ -97,19 +97,19 @@ export function UserDetailPage() {
         alignItems: 'center',
       }}>
         <span style={{ color: '#dc2626', fontWeight: 600, fontSize: 14 }}>
-          🔴 이상 감지 발생 중 — AI 콜 발신 중 · 오후 2:41
+        🔴 이상 감지 발생 중 — {alerts[0]?.event_type === 'fall' ? '낙상' : alerts[0]?.event_type === 'heatstroke' ? '열사병' : '실신'} · {alerts[0] ? new Date(alerts[0].created_at).toLocaleString('ko-KR') : ''}
         </span>
-        <button style={{
-          background: '#dc2626',
-          color: 'white',
-          border: 'none',
-          borderRadius: 6,
-          padding: '6px 16px',
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}>
-          출동
-        </button>
+        <button onClick={handleEmergency} style={{
+  background: '#dc2626',
+  color: 'white',
+  border: 'none',
+  borderRadius: 6,
+  padding: '6px 16px',
+  fontWeight: 600,
+  cursor: 'pointer',
+}}>
+  출동
+</button>
       </div>
 
       <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
