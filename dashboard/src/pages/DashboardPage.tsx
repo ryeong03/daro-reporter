@@ -15,11 +15,11 @@ export function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const statusColor = (status: string) => {
+  const statusConfig = (status: string) => {
     switch (status) {
-      case 'emergency': return { bg: '#fef2f2', text: '#dc2626', label: '응급' };
-      case 'warning': return { bg: '#fffbeb', text: '#d97706', label: '주의' };
-      default: return { bg: '#f0fdf4', text: '#16a34a', label: '정상' };
+      case 'emergency': return { bg: '#fef2f2', text: '#dc2626', label: '🔴 응급', border: '#fecaca' };
+      case 'warning': return { bg: '#fffbeb', text: '#d97706', label: '⚠️ 휴식', border: '#fde68a' };
+      default: return { bg: '#f0fdf4', text: '#16a34a', label: '✅ 정상', border: '#bbf7d0' };
     }
   };
 
@@ -40,7 +40,6 @@ export function DashboardPage() {
 
   const now = new Date();
   const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-
   const emergencyUser = users.find(u => u.status === 'emergency');
 
   const sortedUsers = useMemo(() => {
@@ -86,7 +85,7 @@ export function DashboardPage() {
             border: `1px solid ${card.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
           }}>
             <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>{card.label}</div>
-            <div style={{ fontSize: 32, fontWeight: 700, color: card.color }}>{card.value}
+            <div style={{ fontSize: 36, fontWeight: 800, color: card.color }}>{card.value}
               <span style={{ fontSize: 14, fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>명</span>
             </div>
           </div>
@@ -115,11 +114,12 @@ export function DashboardPage() {
             </thead>
             <tbody>
               {displayUsers.map((user) => {
-                const sc = statusColor(user.status);
+                const sc = statusConfig(user.status);
                 return (
                   <tr key={user.id} style={{
                     borderBottom: '1px solid #f1f5f9',
                     background: user.status === 'emergency' ? '#fef2f2' : user.status === 'warning' ? '#fffbeb' : 'white',
+                    borderLeft: user.status === 'emergency' ? '4px solid #dc2626' : user.status === 'warning' ? '4px solid #d97706' : '4px solid transparent',
                   }}>
                     <td style={tdStyle}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -151,8 +151,8 @@ export function DashboardPage() {
                     </td>
                     <td style={tdStyle}>
                       <span style={{
-                        background: sc.bg, color: sc.text,
-                        padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                        background: sc.bg, color: sc.text, border: `1px solid ${sc.border}`,
+                        padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
                       }}>
                         {sc.label}
                       </span>
