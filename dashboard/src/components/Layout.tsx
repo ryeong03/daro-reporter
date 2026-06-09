@@ -24,7 +24,7 @@ export function Layout({ children }: Props) {
 
   const navItems = [
     { path: '/', label: '🏠 홈 대시보드' },
-    { path: '/alerts', label: '👤 농업인 관리' },
+    { path: '/users', label: '👤 농업인 관리' },
     { path: '/alerts', label: '📋 이력 관리' },
     { path: '/register', label: '⚙️ 설정' },
   ];
@@ -53,7 +53,9 @@ export function Layout({ children }: Props) {
           {/* 메뉴 */}
           <nav style={{ padding: '12px 0', flex: 1 }}>
             {navItems.map((item) => {
-              const active = location.pathname === item.path;
+              const active = item.path === '/users'
+                ? location.pathname.startsWith('/users')
+                : location.pathname === item.path;
               return (
                 <Link
                   key={item.label}
@@ -64,7 +66,7 @@ export function Layout({ children }: Props) {
                     textDecoration: 'none', fontWeight: active ? 600 : 400,
                     background: active ? 'rgba(59,130,246,0.15)' : 'transparent',
                     borderLeft: active ? '3px solid #3b82f6' : '3px solid transparent',
-                    marginBottom: 2, transition: 'all 0.15s',
+                    marginBottom: 2,
                   }}
                 >
                   {item.label}
