@@ -112,21 +112,21 @@ export function UserDetailPage() {
       </div>
 
       {/* 현재 상태 카드 */}
-      <div style={{ ...cardStyle, marginTop: 24, background: '#fef2f2', border: '1px solid #fecaca' }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#dc2626' }}>🚨 현재 상태 — 이상감지</h3>
-        <div style={infoRow}><span style={labelStyle}>심박수</span><span style={{ color: '#dc2626', fontWeight: 700, fontSize: 18 }}>138 bpm</span></div>
-        <div style={infoRow}><span style={labelStyle}>낙상 감지</span><span style={{ color: '#dc2626', fontWeight: 600 }}>감지됨</span></div>
-        <div style={infoRow}><span style={labelStyle}>감지 시각</span><span>오후 2:41 (4분 전)</span></div>
-      </div>
-
-      <div style={{ marginTop: 24 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#1e293b' }}>GPS 위치</h3>
-        <KakaoMapView
-          markers={mapMarkers}
-          height={240}
-          emptyMessage="아직 GPS 기록이 없습니다. 헬스 데이터가 전송되면 표시됩니다."
-        />
-      </div>
+      {alerts.length > 0 && (
+  <div style={{ ...cardStyle, marginTop: 24, background: '#fef2f2', border: '1px solid #fecaca' }}>
+    <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#dc2626' }}>🚨 현재 상태 — 이상감지</h3>
+    <div style={infoRow}>
+      <span style={labelStyle}>이벤트 유형</span>
+      <span style={{ color: '#dc2626', fontWeight: 700, fontSize: 16 }}>
+        {alerts[0].event_type === 'heatstroke' ? '열사병' : alerts[0].event_type === 'syncope' ? '실신' : '낙상'}
+      </span>
+    </div>
+    <div style={infoRow}>
+      <span style={labelStyle}>감지 시각</span>
+      <span>{new Date(alerts[0].created_at).toLocaleString('ko-KR')}</span>
+    </div>
+  </div>
+)}
 
       {/* 알림 이력 */}
       <div style={{ ...cardStyle, marginTop: 24 }}>
