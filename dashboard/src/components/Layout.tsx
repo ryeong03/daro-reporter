@@ -22,74 +22,82 @@ export function Layout({ children }: Props) {
     return () => clearInterval(interval);
   }, []);
 
+  const navItems = [
+    { path: '/', label: '🏠 홈 대시보드' },
+    { path: '/users', label: '👤 농업인 관리' },
+    { path: '/alerts', label: '📋 이력 관리' },
+    { path: '/register', label: '⚙️ 설정' },
+  ];
+
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
-      {/* 응급 알림 배너 */}
-      {emergencyAlerts.length > 0 && (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#0f172a' }}>
+      <div style={{ display: 'flex', flex: 1 }}>
+        {/* 사이드바 */}
         <div style={{
-          background: '#dc2626',
-          color: 'white',
-          padding: '12px 24px',
-          fontWeight: 'bold',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
+          width: 220, background: '#1e293b', minHeight: '100vh',
+          display: 'flex', flexDirection: 'column', padding: '24px 0', flexShrink: 0,
+          boxShadow: '2px 0 8px rgba(0,0,0,0.2)',
         }}>
-          <span style={{ fontSize: 20 }}>🚨</span>
-          <span>응급 상황 {emergencyAlerts.length}건 발생</span>
-          {emergencyAlerts.slice(0, 3).map((a) => (
-            <span key={a.id} style={{
-              background: 'rgba(255,255,255,0.2)',
-              borderRadius: 4,
-              padding: '2px 8px',
-              fontSize: 13,
-            }}>
-              {a.users?.name || '알 수 없음'} — {a.event_type}
-            </span>
-          ))}
+          {/* 로고 */}
+          <div style={{ padding: '0 20px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{
+              width: 44, height: 44, background: '#3b82f6', borderRadius: 12,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontWeight: 800, color: 'white', fontSize: 20, marginBottom: 10,
+              boxShadow: '0 2px 8px rgba(59,130,246,0.4)',
+            }}>H</div>
+            <div style={{ color: 'white', fontWeight: 700, fontSize: 16 }}>Hero</div>
+            <div style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>농어촌 안심케어</div>
+          </div>
+
+          {/* 메뉴 */}
+          <nav style={{ padding: '12px 0', flex: 1 }}>
+            {navItems.map((item) => {
+              const active = item.path === '/users'
+                ? location.pathname.startsWith('/users')
+                : location.pathname === item.path;
+              return (
+                <Link
+                  key={item.label}
+                  to={item.path}
+                  style={{
+                    display: 'block', padding: '11px 20px', fontSize: 14,
+                    color: active ? 'white' : '#64748b',
+                    textDecoration: 'none', fontWeight: active ? 600 : 400,
+                    background: active ? 'rgba(59,130,246,0.15)' : 'transparent',
+                    borderLeft: active ? '3px solid #3b82f6' : '3px solid transparent',
+                    marginBottom: 2,
+                  }}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* 하단 보건소 정보 */}
+          <div style={{
+            padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: '50%', background: '#3b82f6',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'white', fontWeight: 700, fontSize: 13,
+              boxShadow: '0 2px 6px rgba(59,130,246,0.3)',
+            }}>관</div>
+            <div>
+              <div style={{ color: 'white', fontSize: 13, fontWeight: 600 }}>청도보건소</div>
+              <div style={{ color: '#64748b', fontSize: 11, marginTop: 1 }}>관리자</div>
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* 네비게이션 */}
-      <nav style={{
-        background: 'white',
-        borderBottom: '1px solid #e2e8f0',
-        padding: '0 24px',
-        display: 'flex',
-        alignItems: 'center',
-        height: 56,
-        gap: 32,
-      }}>
-        <Link to="/" style={{ fontWeight: 'bold', fontSize: 18, color: '#1e293b', textDecoration: 'none' }}>
-          Hero 관리자
-        </Link>
-        <Link to="/" style={{
-          color: location.pathname === '/' ? '#2563eb' : '#64748b',
-          textDecoration: 'none',
-          fontWeight: location.pathname === '/' ? 600 : 400,
-        }}>
-          대시보드
-        </Link>
-        <Link to="/alerts" style={{
-          color: location.pathname === '/alerts' ? '#2563eb' : '#64748b',
-          textDecoration: 'none',
-          fontWeight: location.pathname === '/alerts' ? 600 : 400,
-        }}>
-          알림 이력
-        </Link>
-        <Link to="/register" style={{
-          color: location.pathname === '/register' ? '#2563eb' : '#64748b',
-          textDecoration: 'none',
-          fontWeight: location.pathname === '/register' ? 600 : 400,
-        }}>
-          농업인 등록
-        </Link>
-      </nav>
-
-      {/* 메인 콘텐츠 */}
-      <main style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
-        {children}
-      </main>
+        {/* 메인 콘텐츠 */}
+        <main style={{ flex: 1, padding: 28, overflow: 'auto', background: '#f8fafc' }}>
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

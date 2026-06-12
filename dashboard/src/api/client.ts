@@ -11,6 +11,7 @@ export interface User {
   id: string;
   name: string;
   phone: string;
+  age?: number;
   device_id: string;
   baseline_bpm: number;
   created_at: string;
