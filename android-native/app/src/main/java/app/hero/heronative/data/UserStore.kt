@@ -1,6 +1,7 @@
 package app.hero.heronative.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -18,6 +19,7 @@ class UserStore(private val context: Context) {
         val DEVICE_ID = stringPreferencesKey("device_id")
         val PHONE = stringPreferencesKey("phone")
         val BASELINE_BPM = doublePreferencesKey("baseline_bpm")
+        val ONBOARDING_DONE = booleanPreferencesKey("onboarding_done")
     }
 
     val session: Flow<UserSession?> = context.dataStore.data.map { prefs ->
@@ -36,6 +38,14 @@ class UserStore(private val context: Context) {
     }
 
     suspend fun getSessionOnce(): UserSession? = session.first()
+
+    val onboardingDone: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[Keys.ONBOARDING_DONE] == true
+    }
+
+    suspend fun markOnboardingDone() {
+        context.dataStore.edit { it[Keys.ONBOARDING_DONE] = true }
+    }
 
     suspend fun saveUser(
         id: String,

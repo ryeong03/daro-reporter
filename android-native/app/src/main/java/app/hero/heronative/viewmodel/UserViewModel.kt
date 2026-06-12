@@ -20,13 +20,22 @@ class UserViewModel(
 
     val session: StateFlow<UserSession?> = observeSessionAsState()
 
+    val onboardingDone: StateFlow<Boolean> = repository
+        .observeOnboardingDone()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(SESSION_SUBSCRIBE_TIMEOUT_MS),
+            initialValue = false,
+        )
+
     fun register(
         name: String,
         phone: String,
         gender: String?,
         birthDate: String?,
         guardians: List<Guardian>,
-        onSuccess: () -> Unit,
+        saveSession: Boolean = true,
+        onSuccess: (UserSession) -> Unit,
         onError: (String) -> Unit,
     ) {
         register(
@@ -37,6 +46,7 @@ class UserViewModel(
                 birthDate = birthDate,
                 guardians = guardians,
             ),
+            saveSession = saveSession,
             onSuccess = onSuccess,
             onError = onError,
         )
@@ -44,11 +54,19 @@ class UserViewModel(
 
     fun register(
         params: UserRegistrationParams,
-        onSuccess: () -> Unit,
+        saveSession: Boolean = true,
+        onSuccess: (UserSession) -> Unit,
         onError: (String) -> Unit,
     ) {
         viewModelScope.launch {
-            executeRegister(params, onSuccess, onError)
+            executeRegister(params, saveSession, onSuccess, onError)
+        }
+    }
+
+    fun markOnboardingDone(onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.markOnboardingDone()
+            onDone()
         }
     }
 
@@ -69,7 +87,8 @@ class UserViewModel(
 
     private suspend fun executeRegister(
         params: UserRegistrationParams,
-        onSuccess: () -> Unit,
+        saveSession: Boolean,
+        onSuccess: (UserSession) -> Unit,
         onError: (String) -> Unit,
     ) {
         val result = repository.register(
@@ -78,17 +97,18 @@ class UserViewModel(
             gender = params.gender,
             birthDate = params.birthDate,
             guardians = params.guardians,
+            saveSession = saveSession,
         )
         notifyRegisterResult(result, onSuccess, onError)
     }
 
     private fun notifyRegisterResult(
         result: Result<UserSession>,
-        onSuccess: () -> Unit,
+        onSuccess: (UserSession) -> Unit,
         onError: (String) -> Unit,
     ) {
         result
-            .onSuccess { onSuccess() }
+            .onSuccess { onSuccess(it) }
             .onFailure { onError(UserViewModelMessages.registerError(it)) }
     }
 

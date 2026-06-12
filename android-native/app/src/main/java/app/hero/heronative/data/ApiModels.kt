@@ -29,7 +29,7 @@ data class UserDto(
     val name: String,
     val phone: String,
     @SerialName("device_id") val deviceId: String? = null,
-    @SerialName("baseline_bpm") val baselineBpm: Double
+    @SerialName("baseline_bpm") val baselineBpm: Double = 75.0
 )
 
 @Serializable
@@ -38,7 +38,7 @@ data class UserDetailResponse(
     val name: String,
     val phone: String,
     @SerialName("device_id") val deviceId: String? = null,
-    @SerialName("baseline_bpm") val baselineBpm: Double,
+    @SerialName("baseline_bpm") val baselineBpm: Double = 75.0,
     val guardians: List<Guardian> = emptyList(),
     @SerialName("latest_location") val latestLocation: LatestLocationDto? = null
 )

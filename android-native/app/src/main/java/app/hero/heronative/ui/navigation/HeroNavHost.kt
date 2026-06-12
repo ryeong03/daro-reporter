@@ -26,65 +26,59 @@ fun HeroNavHost() {
         factory = UserViewModelFactory(application),
     )
     val session by userViewModel.session.collectAsState()
+    val onboardingDone by userViewModel.onboardingDone.collectAsState()
 
-    when (val current = session) {
-        null -> {
-            key("onboarding") {
-                OnboardingScreen(
-                    userViewModel = userViewModel,
-                    onComplete = { /* session flow → Home */ },
-                )
-            }
+    // 세션 없음 → 처음부터 온보딩
+    // 세션 있음 + 기기연결 미완 → step5 재개
+    // 세션 있음 + 온보딩 완료 → Home
+    if (session == null || !onboardingDone) {
+        key("onboarding") {
+            OnboardingScreen(
+                userViewModel = userViewModel,
+                resumeFromDeviceStep = session != null && !onboardingDone,
+                onComplete = { /* onboardingDone → Home */ },
+            )
         }
-        else -> {
-            key(current.userId) {
-                val navController = rememberNavController()
-                val navigateToHome: () -> Unit = {
-                    navController.navigate("home") {
-                        popUpTo("home") { inclusive = false }
-                        launchSingleTop = true
-                    }
+    } else {
+        val current = session!!
+        key(current.userId) {
+            val navController = rememberNavController()
+            NavHost(navController = navController, startDestination = "home") {
+                composable("home") {
+                    HomeScreen(
+                        session = current,
+                        onOpenSettings = { navController.navigate("settings") },
+                    )
                 }
-                NavHost(navController = navController, startDestination = "home") {
-                    composable("home") {
-                        HomeScreen(
-                            session = current,
-                            onOpenSettings = { navController.navigate("settings") },
-                        )
-                    }
-                    composable("settings") {
-                        SettingsScreen(
-                            session = current,
-                            userViewModel = userViewModel,
-                            onBack = { navController.popBackStack() },
-                            onNavigateHome = navigateToHome,
-                            onOpenMonitoringSettings = { navController.navigate("monitoring_settings") },
-                            onOpenGuardians = { navController.navigate("guardians") },
-                            onOpenAiCallHistory = { navController.navigate("ai_call_history") },
-                        )
-                    }
-                    composable("monitoring_settings") {
-                        MonitoringSettingsScreen(
-                            session = current,
-                            onBack = { navController.popBackStack() },
-                            onNavigateHome = navigateToHome,
-                        )
-                    }
-                    composable("guardians") {
-                        GuardianListScreen(
-                            session = current,
-                            onBack = { navController.popBackStack() },
-                            onNavigateHome = navigateToHome,
-                        )
-                    }
-                    composable("ai_call_history") {
-                        AiCallHistoryScreen(
-                            onBack = { navController.popBackStack() },
-                            onNavigateHome = navigateToHome,
-                        )
-                    }
+                composable("settings") {
+                    SettingsScreen(
+                        session = current,
+                        userViewModel = userViewModel,
+                        onBack = { navController.popBackStack() },
+                        onOpenMonitoringSettings = { navController.navigate("monitoring_settings") },
+                        onOpenGuardians = { navController.navigate("guardians") },
+                        onOpenAiCallHistory = { navController.navigate("ai_call_history") },
+                    )
+                }
+                composable("monitoring_settings") {
+                    MonitoringSettingsScreen(
+                        session = current,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable("guardians") {
+                    GuardianListScreen(
+                        session = current,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable("ai_call_history") {
+                    AiCallHistoryScreen(
+                        onBack = { navController.popBackStack() },
+                    )
                 }
             }
         }
     }
 }
+

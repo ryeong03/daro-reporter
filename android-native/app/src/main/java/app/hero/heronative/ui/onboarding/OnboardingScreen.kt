@@ -1,6 +1,7 @@
 package app.hero.heronative.ui.onboarding
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -30,12 +32,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.health.connect.client.PermissionController
+import app.hero.heronative.R
 import app.hero.heronative.data.Guardian
 import app.hero.heronative.data.isValidPhone
 import app.hero.heronative.health.HealthConnectManager
@@ -57,9 +61,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun OnboardingScreen(
     userViewModel: UserViewModel,
+    resumeFromDeviceStep: Boolean = false,
     onComplete: () -> Unit,
 ) {
-    var step by remember { mutableIntStateOf(0) }
+    // 세션이 이미 저장된 경우(앱 재실행) step 5(기기연결)부터 재개
+    var step by remember { mutableIntStateOf(if (resumeFromDeviceStep) 5 else 0) }
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     val guardians = remember { mutableStateListOf(Guardian("", "", "")) }
@@ -67,7 +73,8 @@ fun OnboardingScreen(
     var agreePrivacy by remember { mutableStateOf(false) }
     var agreeLocation by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
-    var registered by remember { mutableStateOf(false) }
+    var registered by remember { mutableStateOf(resumeFromDeviceStep) }
+    var registerError by remember { mutableStateOf<String?>(null) }
     var showBasicInfoError by remember { mutableStateOf(false) }
     var showDeviceDialog by remember { mutableStateOf(false) }
 
@@ -123,6 +130,14 @@ fun OnboardingScreen(
         )
     }
 
+    registerError?.let { message ->
+        HeroAlertDialog(
+            message = message,
+            onConfirm = { registerError = null },
+            onDismiss = { registerError = null },
+        )
+    }
+
     when (step) {
         0 -> StepSplash(onFinished = { step = 1 })
         1 -> StepIntro(onStart = { step = 2 })
@@ -137,6 +152,8 @@ fun OnboardingScreen(
             },
             onDeviceDisconnected = { showDeviceDialog = true },
             onStart = {
+                MonitoringScheduler.schedule(ctx.applicationContext)
+                userViewModel.markOnboardingDone()
                 pendingOpenHealthConnect = true
                 hcPermissionLauncher.launch(healthManager.permissions)
                 onComplete()
@@ -275,16 +292,15 @@ fun OnboardingScreen(
                                         gender = null,
                                         birthDate = null,
                                         guardians = guardians.toList(),
-                                        onSuccess = {
+                                        saveSession = true,
+                                        onSuccess = { _ ->
                                             loading = false
                                             registered = true
-                                            MonitoringScheduler.schedule(ctx.applicationContext)
                                             step = 5
-                                            openHealthConnect()
                                         },
                                         onError = { msg ->
                                             loading = false
-                                            scope.launch { snack.showSnackbar(msg) }
+                                            registerError = msg
                                         },
                                     )
                                 } else {
@@ -316,7 +332,11 @@ private fun StepSplash(onFinished: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Text("📍", fontSize = 80.sp)
+            Image(
+                painter = painterResource(R.drawable.hero_pin_splash),
+                contentDescription = null,
+                modifier = Modifier.height(140.dp),
+            )
             Spacer(Modifier.height(16.dp))
             Text(
                 "Hero",
@@ -347,7 +367,13 @@ private fun StepIntro(onStart: () -> Unit) {
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(24.dp))
-                Text("📍", fontSize = 72.sp)
+                Image(
+                    painter = painterResource(R.drawable.hero_pin_intro),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .width(164.dp)
+                        .height(128.dp),
+                )
                 Spacer(Modifier.height(24.dp))
                 Text(
                     "히어로는 건강상태를 확인하고\n이상이 생기면 보건소와 가족에게\n바로 알리는 밭일 안전 도우미입니다!",

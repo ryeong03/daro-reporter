@@ -26,7 +26,6 @@ import kotlin.math.roundToInt
 fun MonitoringSettingsScreen(
     session: UserSession,
     onBack: () -> Unit,
-    onNavigateHome: () -> Unit,
 ) {
     val baselineUpdated = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
 
@@ -40,8 +39,6 @@ fun MonitoringSettingsScreen(
             title = "설정",
             showBack = true,
             onBack = onBack,
-            showHome = true,
-            onNavigateHome = onNavigateHome,
         )
 
         SettingsSectionDivider()

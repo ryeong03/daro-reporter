@@ -14,14 +14,19 @@ class UserRepository(
 ) {
     fun observeSession(): Flow<UserSession?> = store.session
 
+    fun observeOnboardingDone(): Flow<Boolean> = store.onboardingDone
+
     suspend fun getSession(): UserSession? = store.getSessionOnce()
+
+    suspend fun markOnboardingDone() = store.markOnboardingDone()
 
     suspend fun register(
         name: String,
         phone: String,
         gender: String?,
         birthDate: String?,
-        guardians: List<Guardian>
+        guardians: List<Guardian>,
+        saveSession: Boolean = true,
     ): Result<UserSession> {
         val normalizedPhone = normalizePhone(phone)
         if (!isValidPhone(normalizedPhone)) {
@@ -49,15 +54,19 @@ class UserRepository(
                 )
             )
             val session = toSession(res.user, deviceId)
-            persist(session)
-            baselineCalibration.startForNewUser()
+            if (saveSession) {
+                finalizeRegistration(session)
+            }
             Result.success(session)
         } catch (e: HttpException) {
             if (e.code() == 409) {
                 try {
-                    Result.success(resumeByPhone(normalizedPhone))
+                    val session = resumeByPhone(normalizedPhone, saveSession)
+                    Result.success(session)
                 } catch (inner: Exception) {
-                    Result.failure(inner)
+                    Result.failure(
+                        PhoneAlreadyRegisteredException(normalizedPhone, inner),
+                    )
                 }
             } else {
                 Result.failure(e)
@@ -67,11 +76,18 @@ class UserRepository(
         }
     }
 
-    suspend fun resumeByPhone(phone: String): UserSession {
+    suspend fun finalizeRegistration(session: UserSession) {
+        persist(session)
+        baselineCalibration.startForNewUser()
+    }
+
+    suspend fun resumeByPhone(phone: String, saveSession: Boolean = true): UserSession {
         val res = api.getUserByPhone(phone.trim())
         val deviceId = res.user.deviceId ?: "hero-${System.currentTimeMillis()}"
         val session = toSession(res.user, deviceId)
-        persist(session)
+        if (saveSession) {
+            finalizeRegistration(session)
+        }
         return session
     }
 

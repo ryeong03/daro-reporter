@@ -169,7 +169,7 @@ fun DeviceConnectionStep(
                 color = HeroColors.TextBody,
             )
             Text(
-                text = "갤럭시 핏 또는 스마트 워치를 연결해주세요.\nSamsung Health에서 Health Connect(「애플리케이션」) 데이터 공유를 허용하고, Health Connect 앱이 설치되어 있어야 합니다.",
+                text = "갤럭시 핏 또는 스마트 워치를 연결해주세요.\nHealth Connect 앱이 설치되어 있어야 합니다.",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = HeroColors.TextBody,
