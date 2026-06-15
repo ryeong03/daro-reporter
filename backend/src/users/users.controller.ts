@@ -1,6 +1,6 @@
-import { Controller, Post, Get, Body, Param, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, BadRequestException } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { registerSchema } from './users.schema';
+import { registerSchema, updateProfileSchema } from './users.schema';
 
 @Controller('users')
 export class UsersController {
@@ -33,5 +33,14 @@ export class UsersController {
   @Get()
   async listUsers() {
     return this.usersService.listUsersWithStatus();
+  }
+
+  @Patch(':id')
+  async updateProfile(@Param('id') id: string, @Body() body: unknown) {
+    const parsed = updateProfileSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({ error: 'Invalid payload', details: parsed.error.issues });
+    }
+    return this.usersService.updateProfile(id, parsed.data);
   }
 }

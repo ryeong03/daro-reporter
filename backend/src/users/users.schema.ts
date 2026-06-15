@@ -17,3 +17,10 @@ export const registerSchema = z.object({
 });
 
 export type RegisterPayload = z.infer<typeof registerSchema>;
+
+export const updateProfileSchema = z.object({
+  name: z.string().min(1),
+  phone: z.string().min(10),
+});
+
+export type UpdateProfilePayload = z.infer<typeof updateProfileSchema>;

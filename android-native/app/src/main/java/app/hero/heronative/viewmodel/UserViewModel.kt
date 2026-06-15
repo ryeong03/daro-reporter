@@ -76,6 +76,20 @@ class UserViewModel(
         }
     }
 
+    fun updateProfile(
+        userId: String,
+        name: String,
+        phone: String,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit,
+    ) {
+        viewModelScope.launch {
+            repository.updateProfile(userId, name, phone)
+                .onSuccess { onSuccess() }
+                .onFailure { onError(it.message ?: "저장에 실패했습니다") }
+        }
+    }
+
     private fun observeSessionAsState(): StateFlow<UserSession?> =
         repository
             .observeSession()

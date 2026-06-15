@@ -28,14 +28,50 @@ data class MonitoringUiState(
 
 object MonitoringStateHolder {
     private val _state = MutableStateFlow(MonitoringUiState())
+    private var debugOverride: MonitoringUiState? = null
     val state: StateFlow<MonitoringUiState> = _state.asStateFlow()
 
     fun update(transform: (MonitoringUiState) -> MonitoringUiState) {
-        _state.value = transform(_state.value)
+        val next = transform(_state.value)
+        _state.value = debugOverride?.let { override ->
+            next.copy(
+                heartRate = override.heartRate,
+                detectionState = override.detectionState,
+                watchConnected = override.watchConnected,
+                bluetoothWatchBonded = override.bluetoothWatchBonded,
+                lastHeartRateAt = override.lastHeartRateAt,
+                lastHeartRateMeasuredEpochMs = override.lastHeartRateMeasuredEpochMs,
+                notificationBody = override.notificationBody,
+            )
+        } ?: next
+    }
+
+    fun setDebugHeartRate(
+        bpm: Int,
+        detectionState: String,
+        measuredAtLabel: String,
+        measuredAtEpochMs: Long,
+    ) {
+        val next = _state.value.copy(
+            heartRate = bpm,
+            detectionState = detectionState,
+            watchConnected = true,
+            bluetoothWatchBonded = true,
+            lastHeartRateAt = measuredAtLabel,
+            lastHeartRateMeasuredEpochMs = measuredAtEpochMs,
+            notificationBody = "디버그 심박: ${bpm} BPM",
+        )
+        debugOverride = next
+        _state.value = next
+    }
+
+    fun clearDebugOverride() {
+        debugOverride = null
     }
 
     /** 등록 초기화 후 UI·연결 상태를 기본값으로 되돌린다 */
     fun reset() {
+        debugOverride = null
         _state.value = MonitoringUiState()
     }
 }

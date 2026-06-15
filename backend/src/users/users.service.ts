@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { SupabaseService } from '../database/supabase.service';
 import { BaselineService } from '../detection/baseline.service';
-import { RegisterPayload } from './users.schema';
+import { RegisterPayload, UpdateProfilePayload } from './users.schema';
 
 @Injectable()
 export class UsersService {
@@ -155,5 +155,27 @@ export class UsersService {
     );
 
     return { users: usersWithStatus };
+  }
+
+  async updateProfile(id: string, payload: UpdateProfilePayload) {
+    const db = this.supabaseService.db;
+    const { name, phone } = payload;
+
+    const { data, error } = await db
+      .from('users')
+      .update({ name, phone: phone.trim() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error?.code === 'PGRST116' || (!data && !error)) {
+      throw new NotFoundException('User not found');
+    }
+    if (error) {
+      this.logger.error('Update profile error', error);
+      throw new Error('DB error');
+    }
+
+    return { user: data };
   }
 }
