@@ -29,6 +29,7 @@ import app.hero.heronative.R
 import app.hero.heronative.ui.home.HomeScreen
 import app.hero.heronative.ui.onboarding.OnboardingScreen
 import app.hero.heronative.ui.settings.AiCallHistoryScreen
+import app.hero.heronative.ui.settings.EditProfileScreen
 import app.hero.heronative.ui.settings.GuardianListScreen
 import app.hero.heronative.ui.settings.MonitoringSettingsScreen
 import app.hero.heronative.ui.settings.SettingsScreen
@@ -97,6 +98,15 @@ fun HeroNavHost() {
                             onOpenMonitoringSettings = { navController.navigate("monitoring_settings") },
                             onOpenGuardians = { navController.navigate("guardians") },
                             onOpenAiCallHistory = { navController.navigate("ai_call_history") },
+                            onEditProfile = { navController.navigate("edit_profile") },
+                        )
+                    }
+                    composable("edit_profile") {
+                        EditProfileScreen(
+                            session = current,
+                            userViewModel = userViewModel,
+                            onBack = { navController.popBackStack() },
+                            onSaved = { navController.popBackStack() },
                         )
                     }
                     composable("monitoring_settings") {

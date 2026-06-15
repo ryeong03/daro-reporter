@@ -46,7 +46,7 @@ fun SettingsScreen(
     onOpenMonitoringSettings: () -> Unit,
     onOpenGuardians: () -> Unit,
     onOpenAiCallHistory: () -> Unit,
-    onEditProfile: () -> Unit = {},
+    onEditProfile: () -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

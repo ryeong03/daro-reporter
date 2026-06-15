@@ -100,6 +100,36 @@ class UserRepository(
         api.getUser(userId)
     }
 
+    suspend fun updateProfile(
+        userId: String,
+        name: String,
+        phone: String,
+    ): Result<UserSession> {
+        val normalizedPhone = normalizePhone(phone)
+        if (name.trim().isBlank()) {
+            return Result.failure(IllegalArgumentException("이름을 입력해주세요"))
+        }
+        if (!isValidPhone(normalizedPhone)) {
+            return Result.failure(IllegalArgumentException("전화번호는 10자리 이상이어야 합니다"))
+        }
+        return try {
+            val current = getSession()
+                ?: return Result.failure(IllegalStateException("로그인 정보가 없습니다"))
+            val res = api.updateProfile(
+                userId,
+                UpdateProfileRequest(
+                    name = name.trim(),
+                    phone = normalizedPhone,
+                ),
+            )
+            val session = toSession(res.user, current.deviceId)
+            persist(session)
+            Result.success(session)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     private suspend fun persist(session: UserSession) {
         store.saveUser(
             id = session.userId,

@@ -2,6 +2,7 @@ package app.hero.heronative.data
 
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 
@@ -14,6 +15,12 @@ interface HeroApi {
 
     @GET("/users/{id}")
     suspend fun getUser(@Path("id") id: String): UserDetailResponse
+
+    @PATCH("/users/{id}")
+    suspend fun updateProfile(
+        @Path("id") id: String,
+        @Body body: UpdateProfileRequest,
+    ): RegisterResponse
 
     @POST("/health")
     suspend fun sendHealth(@Body body: HealthDataRequest): HealthDataResponse

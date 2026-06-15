@@ -24,6 +24,12 @@ data class Guardian(
 data class RegisterResponse(val user: UserDto)
 
 @Serializable
+data class UpdateProfileRequest(
+    val name: String,
+    val phone: String,
+)
+
+@Serializable
 data class UserDto(
     val id: String,
     val name: String,
