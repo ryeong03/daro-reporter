@@ -103,23 +103,13 @@ fun AiCallDialog(
     }
 }
 
-private const val HEART_RATE_STALE_MS = 5 * 60 * 1000L
-
 fun formatLastUpdated(
     lastHeartRateAt: String?,
     lastHcCheckedAt: String? = null,
     lastServerSync: String? = null,
-    lastHeartRateMeasuredEpochMs: Long? = null,
 ): String {
-    val staleHint = if (lastHeartRateMeasuredEpochMs != null &&
-        System.currentTimeMillis() - lastHeartRateMeasuredEpochMs > HEART_RATE_STALE_MS
-    ) {
-        " · 워치보다 늦게 반영될 수 있어요"
-    } else {
-        ""
-    }
     return when {
-        !lastHeartRateAt.isNullOrBlank() -> "심박 수신 $lastHeartRateAt$staleHint"
+        !lastHeartRateAt.isNullOrBlank() -> "심박 수신 $lastHeartRateAt"
         !lastHcCheckedAt.isNullOrBlank() -> "조회 $lastHcCheckedAt · 심박 대기"
         !lastServerSync.isNullOrBlank() -> "서버 전송 $lastServerSync"
         else -> "수신 대기 중"

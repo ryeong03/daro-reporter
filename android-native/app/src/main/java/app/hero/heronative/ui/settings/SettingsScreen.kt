@@ -79,10 +79,8 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState()),
     ) {
         HeroScreenTopBar(
-            showBack = true,
-            onBack = onBack,
-            showSettings = true,
-            onOpenSettings = onOpenMonitoringSettings,
+            showBack = false,
+            showSettings = false,
         )
 
         ProfileCard(modifier = Modifier.padding(horizontal = 24.dp)) {
@@ -111,6 +109,7 @@ fun SettingsScreen(
         ) {
             ProfileNavRow(title = "내 보호자 목록", onClick = onOpenGuardians)
             ProfileNavRow(title = "AI 콜 이력", onClick = onOpenAiCallHistory, showDivider = true)
+            ProfileNavRow(title = "설정", onClick = onOpenMonitoringSettings, showDivider = true)
         }
 
         Spacer(Modifier.height(32.dp))

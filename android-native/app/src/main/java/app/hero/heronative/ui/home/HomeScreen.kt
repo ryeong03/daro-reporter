@@ -238,10 +238,8 @@ fun HomeScreen(
     ) {
         HeroScreenTopBar(
             showBack = false,
-            showHome = true,
-            homeSelected = true,
-            showSettings = true,
-            onOpenSettings = onOpenSettings,
+            showHome = false,
+            showSettings = false,
         )
         when {
             isBaselineStopped -> BaselineMeasurementStoppedBanner()
@@ -289,7 +287,6 @@ fun HomeScreen(
                 lastHeartRateAt = ui.lastHeartRateAt,
                 lastHcCheckedAt = ui.lastHcCheckedAt,
                 lastServerSync = ui.lastSync,
-                lastHeartRateMeasuredEpochMs = ui.lastHeartRateMeasuredEpochMs,
             ),
         )
 

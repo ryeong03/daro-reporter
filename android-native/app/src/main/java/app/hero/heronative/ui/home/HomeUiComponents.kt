@@ -20,15 +20,19 @@ import androidx.compose.material.icons.outlined.Watch
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -86,30 +90,54 @@ fun HomeStatusCard(
     }
 }
 
+/** Figma 하트 벡터 (viewBox 238x208) */
+private const val HEART_PATH_DATA =
+    "M211.11 26.81C205.785 21.4831 199.463 17.2575 192.505 14.3744C185.548 11.4914 178.09 " +
+        "10.0075 170.558 10.0075C163.027 10.0075 155.569 11.4914 148.611 14.3744C141.653 " +
+        "17.2575 135.331 21.4831 130.007 26.81L122.495 34.3218C120.541 36.2759 117.373 " +
+        "36.2759 115.419 34.3218L107.907 26.81C97.1521 16.0551 82.5654 10.0131 67.3557 " +
+        "10.0131C52.146 10.0131 37.5593 16.0551 26.8044 26.81C16.0495 37.5649 10.0075 " +
+        "52.1516 10.0075 67.3613C10.0075 82.571 16.0495 97.1577 26.8044 107.913L37.8544 " +
+        "118.963L115.419 196.527C117.373 198.481 120.541 198.481 122.495 196.527L200.06 " +
+        "118.963L211.11 107.913C216.436 102.588 220.662 96.2665 223.545 89.3086C226.428 " +
+        "82.3506 227.912 74.8928 227.912 67.3613C227.912 59.8297 226.428 52.3719 223.545 " +
+        "45.414C220.662 38.4561 216.436 32.1344 211.11 26.81Z"
+private const val HEART_VIEWBOX_W = 238f
+private const val HEART_VIEWBOX_H = 208f
+
 @Composable
 fun HeartRateDisplay(
     bpm: Int,
     heartColor: Color,
     modifier: Modifier = Modifier,
 ) {
+    val heartPath = remember { PathParser().parsePathString(HEART_PATH_DATA).toPath() }
     Box(
         modifier = modifier.size(250.dp),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.size(width = 218.dp, height = 190.dp)) {
-            val path = Path().apply {
-                val w = size.width
-                val h = size.height
-                moveTo(w / 2f, h * 0.28f)
-                cubicTo(w * 0.9f, h * -0.05f, w * 1.05f, h * 0.45f, w / 2f, h * 0.92f)
-                cubicTo(w * -0.05f, h * 0.45f, w * 0.1f, h * -0.05f, w / 2f, h * 0.28f)
-                close()
+            val scale = minOf(size.width / HEART_VIEWBOX_W, size.height / HEART_VIEWBOX_H)
+            val offsetX = (size.width - HEART_VIEWBOX_W * scale) / 2f
+            val offsetY = (size.height - HEART_VIEWBOX_H * scale) / 2f
+            withTransform({
+                translate(offsetX, offsetY)
+                scale(scale, scale, pivot = Offset.Zero)
+            }) {
+                drawPath(
+                    path = heartPath,
+                    color = heartColor.copy(alpha = 0.22f),
+                )
+                drawPath(
+                    path = heartPath,
+                    color = heartColor,
+                    style = Stroke(
+                        width = 20f,
+                        cap = StrokeCap.Round,
+                        join = StrokeJoin.Round,
+                    ),
+                )
             }
-            drawPath(
-                path = path,
-                color = heartColor,
-                style = Stroke(width = 14.dp.toPx(), cap = StrokeCap.Round),
-            )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
