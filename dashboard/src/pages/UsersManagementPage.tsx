@@ -237,7 +237,7 @@ export function UsersManagementPage() {
 function StatusBadge({ status }: { status: User['status'] }) {
   const config = {
     emergency: { bg: '#fef2f2', text: '#dc2626', label: '응급' },
-    warning: { bg: '#fffbeb', text: '#d97706', label: '주의' },
+    warning: { bg: '#fffbeb', text: '#d97706', label: '휴식' },
     normal: { bg: '#f0fdf4', text: '#16a34a', label: '정상' },
   }[status];
 

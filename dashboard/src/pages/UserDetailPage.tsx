@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { api, Alert, CallLog } from '../api/client';
+import { api, Alert, fetchUsers, User } from '../api/client';
 import { KakaoMapView } from '../components/KakaoMapView';
+import { alertStatusLabel, eventTypeLabel, findInProgressAlert, isInProgressAlert } from '../utils/alertStatus';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
 
 interface UserDetail {
@@ -21,28 +22,42 @@ export function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [user, setUser] = useState<UserDetail | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [displayStatus, setDisplayStatus] = useState<User['status']>('normal');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    if (!id) return;
+    setLoading(true);
     Promise.all([
       api.get(`/users/${id}`).then((r) => r.data),
-      api.get('/alert', { params: { user_id: id, limit: 10 } }).then((r) => r.data.alerts),
+      api.get('/alert', { params: { user_id: id, limit: 20 } }).then((r) => r.data.alerts as Alert[]),
+      fetchUsers(),
     ])
-      .then(([userData, alertData]) => {
+      .then(([userData, alertData, users]) => {
         setUser(userData);
         setAlerts(alertData);
+        setDisplayStatus(users.find((u) => u.id === id)?.status ?? 'normal');
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const activeAlert = useMemo(() => findInProgressAlert(alerts), [alerts]);
+  const recentClosedEmergency = useMemo(
+    () => alerts.find((a) => a.status === 'closed_emergency') ?? null,
+    [alerts],
+  );
+
   const handleFalseAlarm = async () => {
-    if (!alerts[0]) return;
+    if (!activeAlert) return;
     if (!window.confirm('오탐 처리하시겠습니까?')) return;
     try {
-      await api.patch(`/alert/${alerts[0].id}`, { status: 'false_alarm' });
-      alert('오탐 처리되었습니다.');
-      window.location.reload();
+      await api.patch(`/alert/${activeAlert.id}`, { status: 'false_alarm' });
+      load();
     } catch {
       alert('처리 중 오류가 발생했습니다.');
     }
@@ -57,12 +72,12 @@ export function UserDetailPage() {
   };
 
   const handleEmergency = async () => {
-    if (!alerts[0]) return;
+    const target = activeAlert ?? recentClosedEmergency;
+    if (!target) return;
     if (!window.confirm('출동 지시하시겠습니까?')) return;
     try {
-      await api.patch(`/alert/${alerts[0].id}`, { status: 'closed_emergency' });
-      alert('출동 지시가 완료되었습니다.');
-      window.location.reload();
+      await api.patch(`/alert/${target.id}`, { status: 'closed_emergency' });
+      load();
     } catch {
       alert('처리 중 오류가 발생했습니다.');
     }
@@ -75,9 +90,10 @@ export function UserDetailPage() {
       name: user.name,
       lat: user.latest_location.lat,
       lng: user.latest_location.lng,
+      status: displayStatus,
       subtitle: `최근 위치 · ${new Date(user.latest_location.timestamp).toLocaleString('ko-KR')}`,
     }];
-  }, [user]);
+  }, [user, displayStatus]);
 
   const bpmData = useMemo(() => {
     const baseline = user?.baseline_bpm || 75;
@@ -95,20 +111,30 @@ export function UserDetailPage() {
     <div>
       <Link to="/" style={{ color: '#64748b', textDecoration: 'none', fontSize: 14 }}>← 목록으로</Link>
 
-      {/* 상단 알림 배너 */}
-      {alerts.length > 0 && (
+      {/* 상단 알림 배너 — 진행 중 알림만 */}
+      {activeAlert && (
         <div style={{
           background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8,
           padding: '12px 20px', marginTop: 16, marginBottom: 20,
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <span style={{ color: '#dc2626', fontWeight: 600, fontSize: 14 }}>
-            🔴 이상 감지 발생 중 — {alerts[0]?.event_type === 'fall' ? '낙상' : alerts[0]?.event_type === 'heatstroke' ? '열사병' : '실신'} · {alerts[0] ? new Date(alerts[0].created_at).toLocaleString('ko-KR') : ''}
+            🔴 이상 감지 발생 중 — {eventTypeLabel(activeAlert.event_type)} · {new Date(activeAlert.created_at).toLocaleString('ko-KR')}
           </span>
           <button onClick={handleEmergency} style={{
             background: '#dc2626', color: 'white', border: 'none',
             borderRadius: 6, padding: '6px 16px', fontWeight: 600, cursor: 'pointer',
           }}>출동</button>
+        </div>
+      )}
+
+      {!activeAlert && recentClosedEmergency && (
+        <div style={{
+          background: '#fff1f2', border: '1px solid #fecaca', borderRadius: 8,
+          padding: '12px 20px', marginTop: 16, marginBottom: 20,
+          fontSize: 14, color: '#b91c1c', fontWeight: 600,
+        }}>
+          🔴 응급 처리 완료 — {eventTypeLabel(recentClosedEmergency.event_type)} · 보건소 알림 발송됨
         </div>
       )}
 
@@ -139,46 +165,60 @@ export function UserDetailPage() {
           </div>
 
           {/* 현재 상태 카드 */}
-          {alerts.length > 0 && (
+          {(activeAlert || recentClosedEmergency) && (
             <div style={{ ...cardStyle, background: '#fef2f2', border: '1px solid #fecaca' }}>
-              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: '#dc2626' }}>🚨 현재 상태 — 이상감지</h3>
-              <div style={infoRow}>
-                <span style={labelStyle}>이벤트 유형</span>
-                <span style={{ color: '#dc2626', fontWeight: 700 }}>
-                  {alerts[0].event_type === 'fall' ? '낙상' : alerts[0].event_type === 'heatstroke' ? '열사병' : '실신'}
-                </span>
-              </div>
-              <div style={infoRow}>
-                <span style={labelStyle}>감지 시각</span>
-                <span>{new Date(alerts[0].created_at).toLocaleString('ko-KR')}</span>
-              </div>
+              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: '#dc2626' }}>
+                🚨 현재 상태 — {activeAlert ? '이상감지' : '응급 처리 완료'}
+              </h3>
+              {(() => {
+                const current = activeAlert ?? recentClosedEmergency!;
+                return (
+                  <>
+                    <div style={infoRow}>
+                      <span style={labelStyle}>이벤트 유형</span>
+                      <span style={{ color: '#dc2626', fontWeight: 700 }}>
+                        {eventTypeLabel(current.event_type)}
+                      </span>
+                    </div>
+                    <div style={infoRow}>
+                      <span style={labelStyle}>감지 시각</span>
+                      <span>{new Date(current.created_at).toLocaleString('ko-KR')}</span>
+                    </div>
+                    <div style={infoRow}>
+                      <span style={labelStyle}>상태</span>
+                      <span>{alertStatusLabel(current.status)}</span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 
           {/* AI 콜 이력 */}
           <div style={cardStyle}>
             <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>AI 콜 이력</h3>
-            {alerts.length > 0 ? (
+            {activeAlert ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                   <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#dc2626', marginTop: 4, flexShrink: 0 }} />
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14, color: '#dc2626' }}>이상 감지</div>
                     <div style={{ fontSize: 13, color: '#64748b' }}>
-                      {new Date(alerts[0].created_at).toLocaleString('ko-KR')} · {alerts[0].event_type === 'fall' ? '낙상' : alerts[0].event_type === 'heatstroke' ? '열사병' : '실신'}
+                      {new Date(activeAlert.created_at).toLocaleString('ko-KR')} · {eventTypeLabel(activeAlert.event_type)}
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563eb', marginTop: 4, flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>AI 콜 1차 발신</div>
-                    <div style={{ fontSize: 13, color: '#64748b' }}>발신 중...</div>
+                {isInProgressAlert(activeAlert) && activeAlert.status === 'calling' && (
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#2563eb', marginTop: 4, flexShrink: 0 }} />
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>AI 콜 진행 중</div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             ) : (
-              <span style={{ color: '#94a3b8' }}>콜 이력 없음</span>
+              <span style={{ color: '#94a3b8' }}>진행 중인 AI 콜 없음</span>
             )}
           </div>
 
@@ -198,8 +238,8 @@ export function UserDetailPage() {
                   {alerts.map((a) => (
                     <tr key={a.id} style={{ borderBottom: '1px solid #f8fafc' }}>
                       <td style={{ ...tdStyle, paddingLeft: 0 }}>{new Date(a.created_at).toLocaleString('ko-KR')}</td>
-                      <td style={tdStyle}>{a.event_type}</td>
-                      <td style={tdStyle}>{a.status}</td>
+                      <td style={tdStyle}>{eventTypeLabel(a.event_type)}</td>
+                      <td style={tdStyle}>{alertStatusLabel(a.status)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -252,13 +292,31 @@ export function UserDetailPage() {
 
       {/* 하단 버튼 */}
       <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-        <button onClick={handleEmergency} style={{ flex: 1, background: '#dc2626', color: 'white', border: 'none', borderRadius: 8, padding: '14px', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}>
+        <button
+          onClick={handleEmergency}
+          disabled={!activeAlert && !recentClosedEmergency}
+          style={{
+            flex: 1, background: '#dc2626', color: 'white', border: 'none', borderRadius: 8,
+            padding: '14px', fontWeight: 700, fontSize: 15,
+            cursor: activeAlert || recentClosedEmergency ? 'pointer' : 'not-allowed',
+            opacity: activeAlert || recentClosedEmergency ? 1 : 0.5,
+          }}
+        >
           🚨 출동 지시
         </button>
         <button onClick={handleGuardianCall} style={{ flex: 1, background: 'white', color: '#1e293b', border: '1px solid #e2e8f0', borderRadius: 8, padding: '14px', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
           📞 보호자 전화
         </button>
-        <button onClick={handleFalseAlarm} style={{ flex: 1, background: 'white', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 8, padding: '14px', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>
+        <button
+          onClick={handleFalseAlarm}
+          disabled={!activeAlert}
+          style={{
+            flex: 1, background: 'white', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 8,
+            padding: '14px', fontWeight: 600, fontSize: 15,
+            cursor: activeAlert ? 'pointer' : 'not-allowed',
+            opacity: activeAlert ? 1 : 0.5,
+          }}
+        >
           ✅ 오탐 처리
         </button>
       </div>

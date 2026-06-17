@@ -38,11 +38,6 @@ export class DemoService {
       user,
       location: EWHA_STARTUP_OPEN_SPACE,
       active_alert: activeAlert,
-      script: [
-        '1. [낙상 시연 시작] → 다로리님 대시보드 이상 감지 + 01025819543으로 AI 확인 전화',
-        '2. 전화 받고 "너무 아파요, 구조 요청해줘" → emergency → 보건소·대시보드 알림 (대현동 33-7)',
-        '3. [시연 종료] → 대시보드 정상 복귀',
-      ],
     };
   }
 
@@ -85,7 +80,7 @@ export class DemoService {
     }
 
     const coords =
-      getUserFixedLocation(user.phone) ?? resolveCoordinates(null, user.phone);
+      getUserFixedLocation(user.phone, userId) ?? resolveCoordinates(null, user.phone, userId);
 
     if (coords) {
       await db.from('health_data').insert({
@@ -108,7 +103,7 @@ export class DemoService {
       location: coords ? { lat: coords.lat, lng: coords.lng } : undefined,
     });
 
-    this.logger.log(`Demo fall triggered for ${user.name} (${user.phone})`);
+    this.logger.log(`Demo fall triggered for user ${userId}`);
 
     return {
       ...result,

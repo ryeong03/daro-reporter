@@ -50,12 +50,16 @@ export function AlertsPage() {
     switch (status) {
       case 'triggered': return { label: '발생', color: '#dc2626', bg: '#fef2f2' };
       case 'calling': return { label: 'AI콜 중', color: '#d97706', bg: '#fffbeb' };
+      case 'emergency': return { label: '응급 대응 중', color: '#dc2626', bg: '#fef2f2' };
       case 'closed_safe': return { label: '안전 종료', color: '#16a34a', bg: '#f0fdf4' };
       case 'closed_emergency': return { label: '응급 처리', color: '#dc2626', bg: '#fef2f2' };
       case 'false_alarm': return { label: '오탐', color: '#94a3b8', bg: '#f8fafc' };
       default: return { label: status, color: '#64748b', bg: '#f8fafc' };
     }
   };
+
+  const actionText = (alert: Alert) =>
+    alert.action_summary || (alert.status === 'false_alarm' ? '오탐 처리' : '—');
 
   const classificationLabel = (c: string) => {
     switch (c) {
@@ -123,21 +127,31 @@ export function AlertsPage() {
                     ) : '—'}
                   </td>
                   <td style={tdStyle}>
-                    {(alert.status === 'triggered' || alert.status === 'calling') && (
-                      <button
-                        onClick={(e) => handleDismiss(e, alert.id)}
-                        style={{
-                          background: '#f1f5f9',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: 6,
-                          padding: '4px 12px',
-                          cursor: 'pointer',
-                          fontSize: 12,
-                        }}
-                      >
-                        오탐 처리
-                      </button>
-                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>
+                        {actionText(alert)}
+                      </span>
+                      {alert.resolved_at && (
+                        <span style={{ fontSize: 12, color: '#94a3b8' }}>
+                          {new Date(alert.resolved_at).toLocaleString('ko-KR')}
+                        </span>
+                      )}
+                      {(alert.status === 'triggered' || alert.status === 'calling') && (
+                        <button
+                          onClick={(e) => handleDismiss(e, alert.id)}
+                          style={{
+                            background: '#f1f5f9',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: 6,
+                            padding: '4px 12px',
+                            cursor: 'pointer',
+                            fontSize: 12,
+                          }}
+                        >
+                          오탐 처리
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -207,6 +221,12 @@ export function AlertsPage() {
                     <div style={{ ...detailItem, gridColumn: '1 / -1' }}>
                       <span style={detailLabel}>종료 시각</span>
                       <span style={detailValue}>{new Date(selectedAlert.resolved_at).toLocaleString('ko-KR')}</span>
+                    </div>
+                  )}
+                  {selectedAlert.action_summary && (
+                    <div style={{ ...detailItem, gridColumn: '1 / -1' }}>
+                      <span style={detailLabel}>조치</span>
+                      <span style={detailValue}>{selectedAlert.action_summary}</span>
                     </div>
                   )}
                 </div>

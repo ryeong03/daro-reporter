@@ -82,17 +82,6 @@ export function DemoPanel() {
           <div style={{ marginTop: 14, fontSize: 13, color: '#334155', fontWeight: 600 }}>{message}</div>
         )}
       </div>
-
-      {info?.script && (
-        <div style={cardStyle}>
-          <h2 style={sectionTitle}>시연 순서</h2>
-          <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: '#475569', lineHeight: 1.8 }}>
-            {info.script.map((line) => (
-              <li key={line}>{line.replace(/^\d+\.\s*/, '')}</li>
-            ))}
-          </ol>
-        </div>
-      )}
     </div>
   );
 }

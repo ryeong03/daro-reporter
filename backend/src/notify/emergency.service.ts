@@ -87,7 +87,7 @@ export class EmergencyService {
       source = latestHealth;
     }
 
-    const coords = resolveCoordinates(source, user.phone);
+    const coords = resolveCoordinates(source, user.phone, userId);
 
     let locationStr: string;
     let mapLink = '';

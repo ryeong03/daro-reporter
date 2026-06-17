@@ -3,6 +3,7 @@ import { SupabaseService } from '../database/supabase.service';
 import { BaselineService } from '../detection/baseline.service';
 import { RegisterPayload, UpdateProfilePayload } from './users.schema';
 import { computeAgeFromBirthDate } from './age.util';
+import { findDisplayAlert, resolveUserDisplayStatus } from '../alert/user-alert-status';
 
 @Injectable()
 export class UsersService {
@@ -125,34 +126,32 @@ export class UsersService {
 
     const usersWithStatus = await Promise.all(
       (data || []).map(async (user) => {
-        const { data: activeAlert } = await db
-          .from('alerts')
-          .select('id, event_type, status')
-          .eq('user_id', user.id)
-          .in('status', ['triggered', 'calling'])
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const displayAlert = await findDisplayAlert(db, user.id);
 
-        const { data: latestLocation } = await db
+        const { data: latestHealth } = await db
           .from('health_data')
-          .select('lat, lng, timestamp')
+          .select('lat, lng, timestamp, heart_rate_avg')
           .eq('user_id', user.id)
           .order('timestamp', { ascending: false })
           .limit(1)
           .maybeSingle();
 
-        let status: 'normal' | 'warning' | 'emergency' = 'normal';
-        if (activeAlert) {
-          status = activeAlert.status === 'triggered' ? 'warning' : 'emergency';
-        }
+        const latestHeartRate =
+          latestHealth?.heart_rate_avg != null ? Number(latestHealth.heart_rate_avg) : null;
 
         return {
           ...user,
           age: computeAgeFromBirthDate(user.birth_date),
-          status,
-          active_alert: activeAlert || null,
-          latest_location: latestLocation || null,
+          status: resolveUserDisplayStatus(displayAlert, latestHeartRate, user.baseline_bpm),
+          active_alert: displayAlert,
+          latest_heart_rate: latestHeartRate,
+          latest_location: latestHealth
+            ? {
+                lat: latestHealth.lat,
+                lng: latestHealth.lng,
+                timestamp: latestHealth.timestamp,
+              }
+            : null,
         };
       }),
     );

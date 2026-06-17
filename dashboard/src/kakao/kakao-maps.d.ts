@@ -11,10 +11,14 @@ declare global {
 
       class LatLng {
         constructor(lat: number, lng: number);
+        getLat(): number;
+        getLng(): number;
       }
 
       class LatLngBounds {
         extend(latlng: LatLng): void;
+        getSouthWest(): LatLng;
+        getNorthEast(): LatLng;
       }
 
       class Map {
@@ -22,6 +26,8 @@ declare global {
         setCenter(latlng: LatLng): void;
         setLevel(level: number): void;
         setBounds(bounds: LatLngBounds): void;
+        getLevel(): number;
+        relayout(): void;
       }
 
       class Size {
@@ -52,6 +58,11 @@ declare global {
         setContent(content: string | HTMLElement): void;
         open(map: Map, marker: Marker): void;
         close(): void;
+      }
+
+      class CustomOverlay {
+        constructor(options: { position: LatLng; content: string; yAnchor?: number });
+        setMap(map: Map | null): void;
       }
 
       namespace event {

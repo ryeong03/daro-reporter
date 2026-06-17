@@ -3,6 +3,7 @@ import { SupabaseService } from '../database/supabase.service';
 import { TriggerService } from '../ai-call/trigger.service';
 import { AlertPayload } from './alert.schema';
 import { resolveCoordinates } from '../config/default-location';
+import { buildAlertActionSummary } from './alert-action-summary';
 
 @Injectable()
 export class AlertService {
@@ -24,7 +25,7 @@ export class AlertService {
         .eq('id', data.user_id)
         .maybeSingle();
 
-      const coords = resolveCoordinates(data.location, user?.phone);
+      const coords = resolveCoordinates(data.location, user?.phone, data.user_id);
 
       const { data: activeAlert } = await db
         .from('alerts')
@@ -72,7 +73,43 @@ export class AlertService {
     const { data, error } = await query;
     if (error) throw new Error('DB error');
 
-    return { alerts: data || [] };
+    const alerts = data || [];
+    if (alerts.length === 0) return { alerts: [] };
+
+    const alertIds = alerts.map((a) => a.id);
+    const [{ data: callLogs }, { data: notificationLogs }] = await Promise.all([
+      db
+        .from('call_logs')
+        .select('alert_id, classification, created_at')
+        .in('alert_id', alertIds)
+        .order('created_at', { ascending: false }),
+      db.from('notification_logs').select('alert_id, channel').in('alert_id', alertIds),
+    ]);
+
+    const latestCallByAlert = new Map<number, { classification: string | null }>();
+    for (const log of callLogs || []) {
+      if (!latestCallByAlert.has(log.alert_id)) {
+        latestCallByAlert.set(log.alert_id, { classification: log.classification });
+      }
+    }
+
+    const notificationsByAlert = new Map<number, { channel: string }[]>();
+    for (const log of notificationLogs || []) {
+      const list = notificationsByAlert.get(log.alert_id) || [];
+      list.push({ channel: log.channel });
+      notificationsByAlert.set(log.alert_id, list);
+    }
+
+    return {
+      alerts: alerts.map((alert) => ({
+        ...alert,
+        action_summary: buildAlertActionSummary(
+          alert.status,
+          latestCallByAlert.get(alert.id),
+          notificationsByAlert.get(alert.id),
+        ),
+      })),
+    };
   }
 
   async getAlertDetail(id: string) {
@@ -100,6 +137,11 @@ export class AlertService {
 
     return {
       ...alert,
+      action_summary: buildAlertActionSummary(
+        alert.status,
+        callLogs?.[callLogs.length - 1] ?? null,
+        notifications || [],
+      ),
       call_logs: callLogs || [],
       notifications: notifications || [],
     };

@@ -40,6 +40,7 @@ export interface User {
   created_at: string;
   status: 'normal' | 'warning' | 'emergency';
   active_alert: Alert | null;
+  latest_heart_rate?: number | null;
   latest_location: { lat: number; lng: number; timestamp: string } | null;
 }
 
@@ -52,6 +53,7 @@ export interface Alert {
   lng: number;
   created_at: string;
   resolved_at: string | null;
+  action_summary?: string;
   users?: { name: string; phone: string };
 }
 
@@ -74,7 +76,6 @@ export interface DemoInfo {
   user: { id: string; name: string; phone: string; baseline_bpm: number };
   location?: { label: string; address: string; roadAddress: string; lat: number; lng: number };
   active_alert: { id: number; status: string } | null;
-  script: string[];
 }
 
 export async function fetchDemoInfo(): Promise<DemoInfo> {

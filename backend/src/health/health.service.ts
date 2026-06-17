@@ -22,7 +22,7 @@ export class HealthService {
       .eq('id', data.user_id)
       .maybeSingle();
 
-    const coords = resolveCoordinates(data.location, user?.phone);
+    const coords = resolveCoordinates(data.location, user?.phone, data.user_id);
 
     const { error } = await this.supabaseService.db.from('health_data').insert({
       user_id: data.user_id,

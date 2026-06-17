@@ -7,6 +7,23 @@ export function getDefaultCenter() {
   return EWHA_CENTER;
 }
 
+export function isValidMapCoord(lat: unknown, lng: unknown): boolean {
+  const la = Number(lat);
+  const ln = Number(lng);
+  return (
+    Number.isFinite(la) &&
+    Number.isFinite(ln) &&
+    Math.abs(la) <= 90 &&
+    Math.abs(ln) <= 180 &&
+    !(Math.abs(la) < 0.0001 && Math.abs(ln) < 0.0001)
+  );
+}
+
+export function normalizeMapCoord(lat: unknown, lng: unknown): { lat: number; lng: number } | null {
+  if (!isValidMapCoord(lat, lng)) return null;
+  return { lat: Number(lat), lng: Number(lng) };
+}
+
 export function loadKakaoMaps(appKey: string): Promise<typeof kakao> {
   if (!appKey || appKey.includes('your-')) {
     return Promise.reject(new Error('REACT_APP_KAKAO_MAP_KEY 가 없습니다.'));

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchUsers, User } from '../api/client';
 import { KakaoMapView } from '../components/KakaoMapView';
+import { isValidMapCoord } from '../kakao/loadKakaoMaps';
 
 export function DashboardPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -31,16 +32,20 @@ export function DashboardPage() {
   const mapMarkers = useMemo(
     () =>
       users
-        .filter((u) => u.latest_location)
+        .filter(
+          (u) =>
+            u.latest_location &&
+            isValidMapCoord(u.latest_location.lat, u.latest_location.lng),
+        )
         .map((u) => ({
           id: u.id,
           name: u.name,
-          lat: u.latest_location!.lat,
-          lng: u.latest_location!.lng,
+          lat: Number(u.latest_location!.lat),
+          lng: Number(u.latest_location!.lng),
           status: u.status,
-          subtitle: u.status === 'emergency' ? '응급' : u.status === 'warning' ? '주의' : '정상',
+          subtitle: u.status === 'emergency' ? '응급' : u.status === 'warning' ? '휴식' : '정상',
         })),
-    [users]
+    [users],
   );
 
   const now = new Date();
@@ -48,6 +53,17 @@ export function DashboardPage() {
   const emergencyUser = users.find((u) => u.status === 'emergency');
   const warningUser = users.find((u) => u.status === 'warning');
   const bannerUser = emergencyUser ?? warningUser;
+
+  const bannerMessage = (user: User) => {
+    const alertStatus = user.active_alert?.status;
+    const eventType = user.active_alert?.event_type;
+    if (user.status === 'warning') return '심박수 상승 · 휴식 권고';
+    if (alertStatus === 'triggered' && eventType === 'fall') return '낙상 감지 · 확인 중';
+    if (alertStatus === 'calling') return 'AI 콜 진행 중';
+    if (alertStatus === 'closed_emergency') return '응급 · 보건소 알림 발송';
+    if (user.status === 'emergency') return '응급 대응';
+    return '이상 감지';
+  };
 
   const sortedUsers = useMemo(() => {
     const order: Record<string, number> = { emergency: 0, warning: 1, normal: 2 };
@@ -81,7 +97,7 @@ export function DashboardPage() {
               fontWeight: 700, fontSize: 13,
             }}>
               {bannerUser.status === 'emergency' ? '🔴' : '⚠️'} 이상 감지 — {bannerUser.name}
-              {bannerUser.status === 'emergency' ? ' | AI 콜 발신 중' : ' | 낙상 감지 · 확인 중'}
+              {' | '}{bannerMessage(bannerUser)}
             </span>
             <span style={{
               color: bannerUser.status === 'emergency' ? '#dc2626' : '#d97706',
@@ -166,7 +182,9 @@ export function DashboardPage() {
                       color: user.status === 'emergency' ? '#dc2626' : user.status === 'warning' ? '#d97706' : '#1e293b',
                       fontWeight: user.status === 'emergency' || user.status === 'warning' ? 700 : 400,
                     }}>
-                      {user.baseline_bpm} bpm
+                      {user.latest_heart_rate != null
+                        ? `${Math.round(user.latest_heart_rate)} bpm`
+                        : `${user.baseline_bpm} bpm`}
                     </td>
                     <td style={tdStyle}>
                       {user.latest_location?.timestamp
@@ -202,7 +220,9 @@ export function DashboardPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
             <span style={{ fontWeight: 600, fontSize: 15, color: '#1e293b' }}>지도 뷰 — 실시간 위치</span>
           </div>
-          <KakaoMapView markers={mapMarkers} height={480} />
+          <div style={{ padding: '0 16px 16px' }}>
+            <KakaoMapView markers={mapMarkers} height={480} />
+          </div>
         </div>
       </div>
     </div>
