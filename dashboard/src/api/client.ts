@@ -11,7 +11,8 @@ export interface User {
   id: string;
   name: string;
   phone: string;
-  age?: number;
+  age?: number | null;
+  birth_date?: string | null;
   device_id: string;
   baseline_bpm: number;
   created_at: string;
@@ -63,7 +64,7 @@ export async function updateAlertStatus(id: number, status: string): Promise<voi
 
 export async function updateUser(
   id: string,
-  payload: { name: string; phone: string },
+  payload: { name: string; phone: string; birth_date?: string | null },
 ): Promise<User> {
   const { data } = await api.patch(`/users/${id}`, payload);
   return data.user;

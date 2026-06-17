@@ -21,6 +21,7 @@ export type RegisterPayload = z.infer<typeof registerSchema>;
 export const updateProfileSchema = z.object({
   name: z.string().min(1),
   phone: z.string().min(10),
+  birth_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
 });
 
 export type UpdateProfilePayload = z.infer<typeof updateProfileSchema>;

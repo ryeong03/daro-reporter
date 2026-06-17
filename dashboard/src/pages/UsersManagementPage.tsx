@@ -5,6 +5,7 @@ import { deleteUser, fetchUsers, updateUser, User } from '../api/client';
 interface EditForm {
   name: string;
   phone: string;
+  birth_date: string;
 }
 
 export function UsersManagementPage() {
@@ -12,7 +13,7 @@ export function UsersManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<User | null>(null);
-  const [form, setForm] = useState<EditForm>({ name: '', phone: '' });
+  const [form, setForm] = useState<EditForm>({ name: '', phone: '', birth_date: '' });
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -33,13 +34,13 @@ export function UsersManagementPage() {
 
   const openEdit = (user: User) => {
     setEditing(user);
-    setForm({ name: user.name, phone: user.phone });
+    setForm({ name: user.name, phone: user.phone, birth_date: user.birth_date ?? '' });
     setError('');
   };
 
   const closeEdit = () => {
     setEditing(null);
-    setForm({ name: '', phone: '' });
+    setForm({ name: '', phone: '', birth_date: '' });
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -57,6 +58,7 @@ export function UsersManagementPage() {
       await updateUser(editing.id, {
         name: form.name.trim(),
         phone: form.phone.trim(),
+        birth_date: form.birth_date.trim() || null,
       });
       closeEdit();
       loadUsers();
@@ -203,6 +205,16 @@ export function UsersManagementPage() {
                   placeholder="01012345678"
                   style={inputStyle}
                   required
+                />
+              </label>
+
+              <label style={labelStyle}>
+                생년월일
+                <input
+                  type="date"
+                  value={form.birth_date}
+                  onChange={(e) => setForm((f) => ({ ...f, birth_date: e.target.value }))}
+                  style={inputStyle}
                 />
               </label>
 

@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, ConflictException, BadRequestExc
 import { SupabaseService } from '../database/supabase.service';
 import { BaselineService } from '../detection/baseline.service';
 import { RegisterPayload, UpdateProfilePayload } from './users.schema';
+import { computeAgeFromBirthDate } from './age.util';
 
 @Injectable()
 export class UsersService {
@@ -93,6 +94,7 @@ export class UsersService {
 
     return {
       ...user,
+      age: computeAgeFromBirthDate(user.birth_date),
       guardians: guardians || [],
       latest_location: latestLocation || null,
     };
@@ -116,7 +118,7 @@ export class UsersService {
 
     const { data, error } = await db
       .from('users')
-      .select('id, name, phone, device_id, baseline_bpm, created_at')
+      .select('id, name, phone, device_id, baseline_bpm, birth_date, created_at')
       .order('created_at', { ascending: false });
 
     if (error) throw new Error('DB error');
@@ -147,6 +149,7 @@ export class UsersService {
 
         return {
           ...user,
+          age: computeAgeFromBirthDate(user.birth_date),
           status,
           active_alert: activeAlert || null,
           latest_location: latestLocation || null,
@@ -158,7 +161,7 @@ export class UsersService {
   }
 
   async updateProfile(id: string, payload: UpdateProfilePayload) {
-    const { name, phone } = payload;
+    const { name, phone, birth_date } = payload;
     const normalizedPhone = phone.trim();
 
     const rpcResult = await this.supabaseService.db.rpc('update_farmer_profile', {
@@ -168,14 +171,38 @@ export class UsersService {
     });
 
     if (!rpcResult.error && rpcResult.data) {
-      return { user: rpcResult.data };
+      const user = await this.applyBirthDateUpdate(id, birth_date, rpcResult.data);
+      return { user: { ...user, age: computeAgeFromBirthDate(user.birth_date) } };
     }
 
     if (this.isRpcMissing(rpcResult.error)) {
-      return this.updateProfileFallback(id, name.trim(), normalizedPhone);
+      const { user } = await this.updateProfileFallback(id, name.trim(), normalizedPhone, birth_date);
+      return { user: { ...user, age: computeAgeFromBirthDate(user.birth_date) } };
     }
 
     this.throwUserMutationError(rpcResult.error, 'Update profile');
+  }
+
+  private async applyBirthDateUpdate(
+    id: string,
+    birthDate: string | null | undefined,
+    currentUser: { birth_date?: string | null } & Record<string, unknown>,
+  ) {
+    if (birthDate === undefined) return currentUser;
+
+    const { data, error } = await this.supabaseService.db
+      .from('users')
+      .update({ birth_date: birthDate })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error || !data) {
+      this.logger.error('Update birth_date error', error);
+      throw new Error('DB error');
+    }
+
+    return data;
   }
 
   async deleteUser(id: string): Promise<void> {
@@ -193,7 +220,12 @@ export class UsersService {
     this.throwUserMutationError(rpcResult.error, 'Delete user');
   }
 
-  private async updateProfileFallback(id: string, name: string, phone: string) {
+  private async updateProfileFallback(
+    id: string,
+    name: string,
+    phone: string,
+    birthDate?: string | null,
+  ) {
     const db = this.supabaseService.db;
 
     const { data: existing } = await db.from('users').select('id').eq('id', id).maybeSingle();
@@ -210,9 +242,12 @@ export class UsersService {
       throw new ConflictException('이미 등록된 전화번호입니다.');
     }
 
+    const patch: { name: string; phone: string; birth_date?: string | null } = { name, phone };
+    if (birthDate !== undefined) patch.birth_date = birthDate;
+
     const { data, error } = await db
       .from('users')
-      .update({ name, phone })
+      .update(patch)
       .eq('id', id)
       .select()
       .single();
