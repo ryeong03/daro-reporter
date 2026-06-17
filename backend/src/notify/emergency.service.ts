@@ -6,6 +6,7 @@ import { SlackService } from './slack.service';
 import { TwilioCallService } from '../ai-call/twilio-call.service';
 import { KakaoMapService } from '../external/kakao-map.service';
 import { GuardianService } from '../guardian/guardian.service';
+import { resolveCoordinates } from '../config/default-location';
 
 type EventType = 'heatstroke' | 'syncope' | 'fall';
 
@@ -59,23 +60,51 @@ export class EmergencyService {
       return;
     }
 
-    const { data: latestHealth } = await db
-      .from('health_data')
-      .select('lat, lng')
-      .eq('user_id', userId)
-      .order('timestamp', { ascending: false })
-      .limit(1)
-      .single();
+    let source: { lat?: number | null; lng?: number | null } | null = null;
 
-    const lat = latestHealth?.lat || 0;
-    const lng = latestHealth?.lng || 0;
+    if (alertId) {
+      const { data: alertRow } = await db
+        .from('alerts')
+        .select('lat, lng')
+        .eq('id', alertId)
+        .maybeSingle();
+      source = alertRow;
+    }
 
-    const addressResult = await this.kakaoMapService.coordToAddress(lat, lng);
-    const locationStr = addressResult?.address || `위도 ${lat}, 경도 ${lng}`;
-    const mapLink = `https://map.kakao.com/link/map/${lat},${lng}`;
+    const missingCoords =
+      !source ||
+      (source.lat == null && source.lng == null) ||
+      (Number(source.lat) === 0 && Number(source.lng) === 0);
+
+    if (missingCoords) {
+      const { data: latestHealth } = await db
+        .from('health_data')
+        .select('lat, lng')
+        .eq('user_id', userId)
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      source = latestHealth;
+    }
+
+    const coords = resolveCoordinates(source, user.phone);
+
+    let locationStr: string;
+    let mapLink = '';
+    if (coords) {
+      const { lat, lng } = coords;
+      const addressResult = await this.kakaoMapService.coordToAddress(lat, lng);
+      locationStr = addressResult?.address || `위도 ${lat}, 경도 ${lng}`;
+      mapLink = `https://map.kakao.com/link/map/${lat},${lng}`;
+    } else {
+      locationStr = '위치 미확인 (GPS 없음)';
+    }
 
     const eventLabel = EVENT_LABELS[eventType];
-    const message = `[Hero 긴급] ${user.name}님 ${eventLabel}\n위치: ${locationStr}\n지도: ${mapLink}\n사유: ${HEALTH_CENTER_REASON}\n즉시 확인 필요`;
+    const locationLines = mapLink
+      ? `위치: ${locationStr}\n지도: ${mapLink}`
+      : `위치: ${locationStr}`;
+    const message = `[Hero 긴급] ${user.name}님 ${eventLabel}\n${locationLines}\n사유: ${HEALTH_CENTER_REASON}\n즉시 확인 필요`;
 
     let resolvedAlertId = alertId ?? null;
     if (!resolvedAlertId) {
@@ -103,7 +132,13 @@ export class EmergencyService {
 
     const coreNotifications = Promise.allSettled([
       this.smsService.sendSMS(healthCenterPhone, message),
-      this.slackService.sendAlert(message, { userId, eventType, lat, lng, reason: HEALTH_CENTER_REASON }),
+      this.slackService.sendAlert(message, {
+        userId,
+        eventType,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
+        reason: HEALTH_CENTER_REASON,
+      }),
       this.twilioCallService.callHealthCenter(user.name, eventType, locationStr),
     ]);
 
@@ -112,7 +147,10 @@ export class EmergencyService {
     const guardianNotifications = (guardians || []).map((g) => {
       const token = this.guardianService.generateEmergencyToken(g.id, userId, resolvedAlertId || 0);
       const emergencyLink = `${baseUrl}/emergency?token=${token}`;
-      const guardianMessage = `[Hero 긴급] ${user.name} 어르신에게 ${eventLabel} 상황이 발생했습니다.\n위치: ${locationStr}\n지도: ${mapLink}\n보건소에 자동 알림이 전달되었습니다.\n\n상세 확인: ${emergencyLink}`;
+      const guardianLocationLines = mapLink
+        ? `위치: ${locationStr}\n지도: ${mapLink}`
+        : `위치: ${locationStr}`;
+      const guardianMessage = `[Hero 긴급] ${user.name} 어르신에게 ${eventLabel} 상황이 발생했습니다.\n${guardianLocationLines}\n보건소에 자동 알림이 전달되었습니다.\n\n상세 확인: ${emergencyLink}`;
       return this.smsService.sendSMS(g.phone, guardianMessage);
     });
 

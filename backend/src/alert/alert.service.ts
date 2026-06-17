@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, BadRequestException } from '@nes
 import { SupabaseService } from '../database/supabase.service';
 import { TriggerService } from '../ai-call/trigger.service';
 import { AlertPayload } from './alert.schema';
+import { resolveCoordinates } from '../config/default-location';
 
 @Injectable()
 export class AlertService {
@@ -17,8 +18,13 @@ export class AlertService {
     const db = this.supabaseService.db;
 
     if (data.type === 'fall_detected') {
-      const lat = data.location?.lat || 0;
-      const lng = data.location?.lng || 0;
+      const { data: user } = await db
+        .from('users')
+        .select('phone')
+        .eq('id', data.user_id)
+        .maybeSingle();
+
+      const coords = resolveCoordinates(data.location, user?.phone);
 
       const { data: activeAlert } = await db
         .from('alerts')
@@ -40,8 +46,8 @@ export class AlertService {
         user_id: data.user_id,
         event_type: 'fall',
         status: 'triggered',
-        lat,
-        lng,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
       });
 
       this.triggerService.triggerAICall(data.user_id, 'syncope');

@@ -5,6 +5,7 @@ import app.hero.heronative.data.HealthDataRequest
 import app.hero.heronative.data.HeartRatePoint
 import app.hero.heronative.data.UserSession
 import app.hero.heronative.health.HealthConnectManager
+import app.hero.heronative.location.HeroLocationDefaults
 import app.hero.heronative.location.LocationProvider
 import app.hero.heronative.location.LocationTracker
 import java.time.Instant
@@ -105,7 +106,10 @@ class DataSyncManager(
 
         refreshGpsStatus()
 
-        val location = locationProvider.getCurrentLocation() ?: return false
+        val location = HeroLocationDefaults.resolve(
+            session.phone,
+            locationProvider.getCurrentLocation(),
+        ) ?: return false
 
         val payload = HealthDataRequest(
             deviceId = session.deviceId,

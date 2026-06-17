@@ -1,3 +1,4 @@
+/** 경북 청도군 각남면 다로리 — backend DEFAULT_LAT/LNG 와 동일 */
 const DARO_CENTER = { lat: 35.6478, lng: 128.7341 };
 
 let loadPromise: Promise<typeof kakao> | null = null;
