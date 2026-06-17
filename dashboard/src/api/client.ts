@@ -60,3 +60,15 @@ export async function fetchAlertDetail(id: number): Promise<Alert & { call_logs:
 export async function updateAlertStatus(id: number, status: string): Promise<void> {
   await api.patch(`/alert/${id}`, { status });
 }
+
+export async function updateUser(
+  id: string,
+  payload: { name: string; phone: string },
+): Promise<User> {
+  const { data } = await api.patch(`/users/${id}`, payload);
+  return data.user;
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  await api.delete(`/users/${id}`);
+}

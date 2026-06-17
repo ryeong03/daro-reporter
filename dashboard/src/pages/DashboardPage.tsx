@@ -6,7 +6,6 @@ import { KakaoMapView } from '../components/KakaoMapView';
 export function DashboardPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     fetchUsers()
@@ -47,7 +46,7 @@ export function DashboardPage() {
     return [...users].sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3));
   }, [users]);
 
-  const displayUsers = showAll ? sortedUsers : sortedUsers.slice(0, 5);
+  const displayUsers = sortedUsers.slice(0, 5);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>불러오는 중...</div>;
 
@@ -76,7 +75,7 @@ export function DashboardPage() {
       {/* 요약 카드 */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
         {[
-          { label: '전체 등록 농업인', value: users.length, color: '#1e293b', bg: 'white', border: '#e2e8f0' },
+          { label: '전체 등록 농업인', value: users.length, color: '#1e293b', bg: 'white', border: '#e2e8f0', link: '/users' },
           { label: '정상', value: users.filter(u => u.status === 'normal').length, color: '#16a34a', bg: 'white', border: '#e2e8f0' },
           { label: '휴식 요망', value: users.filter(u => u.status === 'warning').length, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
           { label: '응급 / 이상감지', value: users.filter(u => u.status === 'emergency').length, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
@@ -86,7 +85,12 @@ export function DashboardPage() {
             border: `1px solid ${card.border}`, boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
           }}>
             <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>{card.label}</div>
-            <div style={{ fontSize: 36, fontWeight: 800, color: card.color }}>{card.value}
+            <div style={{ fontSize: 36, fontWeight: 800, color: card.color }}>
+              {card.link ? (
+                <Link to={card.link} style={{ color: 'inherit', textDecoration: 'none' }}>{card.value}</Link>
+              ) : (
+                card.value
+              )}
               <span style={{ fontSize: 14, fontWeight: 400, color: '#94a3b8', marginLeft: 4 }}>명</span>
             </div>
           </div>
@@ -99,9 +103,9 @@ export function DashboardPage() {
         <div style={{ background: 'white', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
             <span style={{ fontWeight: 600, fontSize: 15, color: '#1e293b' }}>농업인 현황 목록</span>
-            <span onClick={() => setShowAll(!showAll)} style={{ color: '#2563eb', fontSize: 13, cursor: 'pointer' }}>
-              {showAll ? '접기' : '전체보기'}
-            </span>
+            <Link to="/users" style={{ color: '#2563eb', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}>
+              농업인 관리 →
+            </Link>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -161,12 +165,12 @@ export function DashboardPage() {
                   </tr>
                 );
               })}
-              {!showAll && users.length > 5 && (
+              {users.length > 5 && (
                 <tr>
                   <td colSpan={5} style={{ padding: '12px 20px', textAlign: 'center' }}>
-                    <span onClick={() => setShowAll(true)} style={{ color: '#64748b', fontSize: 13, cursor: 'pointer' }}>
-                      · · · {users.length - 5}명 더보기
-                    </span>
+                    <Link to="/users" style={{ color: '#64748b', fontSize: 13, textDecoration: 'none' }}>
+                      · · · {users.length - 5}명 더보기 (농업인 관리)
+                    </Link>
                   </td>
                 </tr>
               )}

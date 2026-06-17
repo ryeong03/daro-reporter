@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../database/supabase.service';
 import { BaselineService } from '../detection/baseline.service';
 import { RegisterPayload, UpdateProfilePayload } from './users.schema';
@@ -158,12 +158,61 @@ export class UsersService {
   }
 
   async updateProfile(id: string, payload: UpdateProfilePayload) {
-    const db = this.supabaseService.db;
     const { name, phone } = payload;
+    const normalizedPhone = phone.trim();
+
+    const rpcResult = await this.supabaseService.db.rpc('update_farmer_profile', {
+      p_user_id: id,
+      p_name: name.trim(),
+      p_phone: normalizedPhone,
+    });
+
+    if (!rpcResult.error && rpcResult.data) {
+      return { user: rpcResult.data };
+    }
+
+    if (this.isRpcMissing(rpcResult.error)) {
+      return this.updateProfileFallback(id, name.trim(), normalizedPhone);
+    }
+
+    this.throwUserMutationError(rpcResult.error, 'Update profile');
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    const rpcResult = await this.supabaseService.db.rpc('delete_farmer', {
+      p_user_id: id,
+    });
+
+    if (!rpcResult.error) return;
+
+    if (this.isRpcMissing(rpcResult.error)) {
+      await this.deleteUserFallback(id);
+      return;
+    }
+
+    this.throwUserMutationError(rpcResult.error, 'Delete user');
+  }
+
+  private async updateProfileFallback(id: string, name: string, phone: string) {
+    const db = this.supabaseService.db;
+
+    const { data: existing } = await db.from('users').select('id').eq('id', id).maybeSingle();
+    if (!existing) throw new NotFoundException('User not found');
+
+    const { data: duplicate } = await db
+      .from('users')
+      .select('id')
+      .eq('phone', phone)
+      .neq('id', id)
+      .maybeSingle();
+
+    if (duplicate) {
+      throw new ConflictException('이미 등록된 전화번호입니다.');
+    }
 
     const { data, error } = await db
       .from('users')
-      .update({ name, phone: phone.trim() })
+      .update({ name, phone })
       .eq('id', id)
       .select()
       .single();
@@ -171,11 +220,49 @@ export class UsersService {
     if (error?.code === 'PGRST116' || (!data && !error)) {
       throw new NotFoundException('User not found');
     }
+    if (error?.code === '23505') {
+      throw new ConflictException('이미 등록된 전화번호입니다.');
+    }
     if (error) {
       this.logger.error('Update profile error', error);
       throw new Error('DB error');
     }
 
     return { user: data };
+  }
+
+  private async deleteUserFallback(id: string): Promise<void> {
+    const db = this.supabaseService.db;
+
+    const { data: existing } = await db.from('users').select('id').eq('id', id).maybeSingle();
+    if (!existing) throw new NotFoundException('User not found');
+
+    const { error } = await db.from('users').delete().eq('id', id);
+    if (error) {
+      this.logger.error('Delete user error', error);
+      throw new Error('DB error');
+    }
+  }
+
+  private isRpcMissing(error: { code?: string; message?: string } | null): boolean {
+    if (!error) return false;
+    return error.code === 'PGRST202' || (error.message?.includes('Could not find the function') ?? false);
+  }
+
+  private throwUserMutationError(error: { code?: string; message?: string } | null, context: string): never {
+    const message = error?.message ?? '';
+
+    if (message.includes('user_not_found') || error?.code === 'P0002') {
+      throw new NotFoundException('User not found');
+    }
+    if (message.includes('phone_already_exists') || error?.code === '23505') {
+      throw new ConflictException('이미 등록된 전화번호입니다.');
+    }
+    if (message.includes('invalid_phone') || message.includes('name_required')) {
+      throw new BadRequestException('이름과 전화번호(10자리 이상)를 확인해주세요.');
+    }
+
+    this.logger.error(`${context} error`, error);
+    throw new Error('DB error');
   }
 }

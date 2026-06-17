@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { DashboardPage } from './pages/DashboardPage';
 import { AlertsPage } from './pages/AlertsPage';
 import { UserDetailPage } from './pages/UserDetailPage';
+import { UsersManagementPage } from './pages/UsersManagementPage';
 import { RegisterPage } from './pages/RegisterPage';
 import './index.css';
 
@@ -16,6 +17,7 @@ function App() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
+          <Route path="/users" element={<UsersManagementPage />} />
           <Route path="/users/:id" element={<UserDetailPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="*" element={<Navigate to="/" />} />

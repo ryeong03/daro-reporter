@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, Param, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Param, BadRequestException, HttpCode } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { registerSchema, updateProfileSchema } from './users.schema';
 
@@ -42,5 +42,11 @@ export class UsersController {
       throw new BadRequestException({ error: 'Invalid payload', details: parsed.error.issues });
     }
     return this.usersService.updateProfile(id, parsed.data);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  async deleteUser(@Param('id') id: string) {
+    await this.usersService.deleteUser(id);
   }
 }
