@@ -190,7 +190,7 @@ export class EmergencyService {
       if (current?.status !== 'closed_safe') {
         await db
           .from('alerts')
-          .update({ status: 'closed_emergency', resolved_at: new Date().toISOString() })
+          .update({ status: 'emergency' })
           .eq('id', resolvedAlertId);
       }
     }

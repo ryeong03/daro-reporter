@@ -38,7 +38,8 @@ export interface User {
   device_id: string;
   baseline_bpm: number;
   created_at: string;
-  status: 'normal' | 'warning' | 'emergency';
+  status: 'normal' | 'warning' | 'emergency' | 'rescue' | 'resolved';
+  status_label?: string;
   active_alert: Alert | null;
   latest_heart_rate?: number | null;
   last_health_at?: string | null;

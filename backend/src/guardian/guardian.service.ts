@@ -1,7 +1,7 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { SupabaseService } from '../database/supabase.service';
-import { findDisplayAlert, resolveUserDisplayStatus } from '../alert/user-alert-status';
+import { findDisplayAlert, resolveStatusLabel, resolveUserDisplayStatus } from '../alert/user-alert-status';
 import * as crypto from 'crypto';
 
 interface GuardianPayload {
@@ -184,15 +184,17 @@ export class GuardianService {
     const displayAlert = await findDisplayAlert(db, userId);
     const latestHeartRate =
       latestHealth?.heart_rate_avg != null ? Number(latestHealth.heart_rate_avg) : null;
+    const displayStatus = resolveUserDisplayStatus(
+      displayAlert,
+      latestHeartRate,
+      user.baseline_bpm,
+      user.name,
+    );
 
     return {
       user,
-      status: resolveUserDisplayStatus(
-        displayAlert,
-        latestHeartRate,
-        user.baseline_bpm,
-        user.name,
-      ),
+      status: displayStatus,
+      status_label: resolveStatusLabel(displayAlert, displayStatus, user.name),
       latest_health: latestHealth || null,
       active_alert: displayAlert,
     };

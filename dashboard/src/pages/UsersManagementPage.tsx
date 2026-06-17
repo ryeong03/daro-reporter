@@ -141,7 +141,7 @@ export function UsersManagementPage() {
                   {new Date(user.created_at).toLocaleDateString('ko-KR')}
                 </td>
                 <td style={tdStyle}>
-                  <StatusBadge status={user.status} />
+                  <StatusBadge status={user.status} label={user.status_label} />
                 </td>
                 <td style={tdStyle}>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -234,11 +234,13 @@ export function UsersManagementPage() {
   );
 }
 
-function StatusBadge({ status }: { status: User['status'] }) {
+function StatusBadge({ status, label }: { status: User['status']; label?: string }) {
   const config = {
-    emergency: { bg: '#fef2f2', text: '#dc2626', label: '응급' },
-    warning: { bg: '#fffbeb', text: '#d97706', label: '휴식' },
-    normal: { bg: '#f0fdf4', text: '#16a34a', label: '정상' },
+    emergency: { bg: '#fef2f2', text: '#dc2626', label: label ?? '응급' },
+    rescue: { bg: '#fef2f2', text: '#b91c1c', label: label ?? '구조 필요' },
+    resolved: { bg: '#eff6ff', text: '#1d4ed8', label: label ?? '처리완료' },
+    warning: { bg: '#fffbeb', text: '#d97706', label: label ?? '휴식' },
+    normal: { bg: '#f0fdf4', text: '#16a34a', label: label ?? '정상' },
   }[status];
 
   return (

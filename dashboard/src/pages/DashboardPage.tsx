@@ -22,9 +22,25 @@ export function DashboardPage() {
     return () => window.clearInterval(interval);
   }, [loadUsers]);
 
-  const statusConfig = (status: string) => {
-    switch (status) {
+  const statusConfig = (user: User) => {
+    if (user.status_label) {
+      switch (user.status) {
+        case 'emergency':
+          return { bg: '#fef2f2', text: '#dc2626', label: `🔴 ${user.status_label}`, border: '#fecaca' };
+        case 'rescue':
+          return { bg: '#fef2f2', text: '#b91c1c', label: `🔴 ${user.status_label}`, border: '#fecaca' };
+        case 'resolved':
+          return { bg: '#eff6ff', text: '#1d4ed8', label: `✅ ${user.status_label}`, border: '#bfdbfe' };
+        case 'warning':
+          return { bg: '#fffbeb', text: '#d97706', label: `⚠️ ${user.status_label}`, border: '#fde68a' };
+        default:
+          return { bg: '#f0fdf4', text: '#16a34a', label: `✅ ${user.status_label}`, border: '#bbf7d0' };
+      }
+    }
+    switch (user.status) {
       case 'emergency': return { bg: '#fef2f2', text: '#dc2626', label: '🔴 응급', border: '#fecaca' };
+      case 'rescue': return { bg: '#fef2f2', text: '#b91c1c', label: '🔴 구조 필요', border: '#fecaca' };
+      case 'resolved': return { bg: '#eff6ff', text: '#1d4ed8', label: '✅ 처리완료', border: '#bfdbfe' };
       case 'warning': return { bg: '#fffbeb', text: '#d97706', label: '⚠️ 휴식', border: '#fde68a' };
       default: return { bg: '#f0fdf4', text: '#16a34a', label: '✅ 정상', border: '#bbf7d0' };
     }
@@ -43,31 +59,30 @@ export function DashboardPage() {
           name: u.name,
           lat: Number(u.latest_location!.lat),
           lng: Number(u.latest_location!.lng),
-          status: u.status,
-          subtitle: u.status === 'emergency' ? '응급' : u.status === 'warning' ? '휴식' : '정상',
+          status: u.status === 'rescue' ? 'emergency' : u.status === 'resolved' ? 'normal' : u.status,
+          subtitle: u.status_label ?? (u.status === 'emergency' ? '응급' : u.status === 'warning' ? '휴식' : '정상'),
         })),
     [users],
   );
 
   const now = new Date();
   const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-  const emergencyUser = users.find((u) => u.status === 'emergency');
+  const alertUser = users.find((u) => u.status === 'emergency' || u.status === 'rescue');
   const warningUser = users.find((u) => u.status === 'warning');
-  const bannerUser = emergencyUser ?? warningUser;
+  const resolvedUser = users.find((u) => u.status === 'resolved');
+  const bannerUser = alertUser ?? warningUser ?? resolvedUser;
 
   const bannerMessage = (user: User) => {
-    const alertStatus = user.active_alert?.status;
-    const eventType = user.active_alert?.event_type;
     if (user.status === 'warning') return '심박수 상승 · 휴식 권고';
-    if (alertStatus === 'triggered' && eventType === 'fall') return '낙상 감지 · 확인 중';
-    if (alertStatus === 'calling') return 'AI 콜 진행 중';
-    if (alertStatus === 'closed_emergency') return '응급 · 보건소 알림 발송';
-    if (user.status === 'emergency') return '응급 대응';
-    return '이상 감지';
+    if (user.status === 'rescue') return '구조 필요 · 보건소 알림 발송';
+    if (user.status === 'resolved') return '출동 완료 · 처리됨';
+    if (user.active_alert?.status === 'calling') return 'AI 콜 진행 중';
+    if (user.status === 'emergency') return '낙상 감지 · 확인 중';
+    return user.status_label ?? '이상 감지';
   };
 
   const sortedUsers = useMemo(() => {
-    const order: Record<string, number> = { emergency: 0, warning: 1, normal: 2 };
+    const order: Record<string, number> = { emergency: 0, rescue: 1, warning: 2, resolved: 3, normal: 4 };
     return [...users].sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3));
   }, [users]);
 
@@ -83,29 +98,32 @@ export function DashboardPage() {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>홈 대시보드</h1>
           <div style={{ fontSize: 13, color: '#94a3b8' }}>{dateStr} · 실시간 현황</div>
         </div>
-        {bannerUser && (
+        {bannerUser && (() => {
+          const isUrgent = bannerUser.status === 'emergency' || bannerUser.status === 'rescue';
+          const isResolved = bannerUser.status === 'resolved';
+          const bg = isUrgent ? '#fff1f2' : isResolved ? '#eff6ff' : '#fffbeb';
+          const border = isUrgent ? '#fca5a5' : isResolved ? '#bfdbfe' : '#fde68a';
+          const color = isUrgent ? '#dc2626' : isResolved ? '#1d4ed8' : '#d97706';
+          const icon = isUrgent ? '🔴' : isResolved ? '✅' : '⚠️';
+          const title = isResolved ? '처리 완료' : '이상 감지';
+          return (
           <Link
             to={`/users/${bannerUser.id}`}
             style={{
-            background: bannerUser.status === 'emergency' ? '#fff1f2' : '#fffbeb',
-            border: `1.5px solid ${bannerUser.status === 'emergency' ? '#fca5a5' : '#fde68a'}`,
+            background: bg,
+            border: `1.5px solid ${border}`,
             borderRadius: 8,
             padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, maxWidth: 480,
-            boxShadow: '0 2px 8px rgba(220,38,38,0.1)', textDecoration: 'none',
+            boxShadow: isUrgent ? '0 2px 8px rgba(220,38,38,0.1)' : '0 2px 8px rgba(0,0,0,0.06)', textDecoration: 'none',
           }}>
-            <span style={{
-              color: bannerUser.status === 'emergency' ? '#dc2626' : '#d97706',
-              fontWeight: 700, fontSize: 13,
-            }}>
-              {bannerUser.status === 'emergency' ? '🔴' : '⚠️'} 이상 감지 — {bannerUser.name}
+            <span style={{ color, fontWeight: 700, fontSize: 13 }}>
+              {icon} {title} — {bannerUser.name}
               {' | '}{bannerMessage(bannerUser)}
             </span>
-            <span style={{
-              color: bannerUser.status === 'emergency' ? '#dc2626' : '#d97706',
-              fontSize: 13, whiteSpace: 'nowrap', fontWeight: 600,
-            }}>확인 →</span>
+            <span style={{ color, fontSize: 13, whiteSpace: 'nowrap', fontWeight: 600 }}>확인 →</span>
           </Link>
-        )}
+          );
+        })()}
       </div>
 
       {/* 요약 카드 */}
@@ -114,7 +132,7 @@ export function DashboardPage() {
           { label: '전체 등록 농업인', value: users.length, color: '#1e293b', bg: 'white', border: '#e2e8f0', link: '/users' },
           { label: '정상', value: users.filter(u => u.status === 'normal').length, color: '#16a34a', bg: 'white', border: '#e2e8f0' },
           { label: '휴식 요망', value: users.filter(u => u.status === 'warning').length, color: '#d97706', bg: '#fffbeb', border: '#fde68a' },
-          { label: '응급 / 이상감지', value: users.filter(u => u.status === 'emergency').length, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+          { label: '응급 / 이상감지', value: users.filter(u => u.status === 'emergency' || u.status === 'rescue').length, color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
         ].map(card => (
           <div key={card.label} style={{
             flex: 1, background: card.bg, borderRadius: 12, padding: '20px 24px',
@@ -155,18 +173,18 @@ export function DashboardPage() {
             </thead>
             <tbody>
               {displayUsers.map((user) => {
-                const sc = statusConfig(user.status);
+                const sc = statusConfig(user);
                 return (
                   <tr key={user.id} style={{
                     borderBottom: '1px solid #f1f5f9',
-                    background: user.status === 'emergency' ? '#fef2f2' : user.status === 'warning' ? '#fffbeb' : 'white',
-                    borderLeft: user.status === 'emergency' ? '4px solid #dc2626' : user.status === 'warning' ? '4px solid #d97706' : '4px solid transparent',
+                    background: user.status === 'emergency' || user.status === 'rescue' ? '#fef2f2' : user.status === 'warning' ? '#fffbeb' : user.status === 'resolved' ? '#eff6ff' : 'white',
+                    borderLeft: user.status === 'emergency' || user.status === 'rescue' ? '4px solid #dc2626' : user.status === 'warning' ? '4px solid #d97706' : user.status === 'resolved' ? '4px solid #3b82f6' : '4px solid transparent',
                   }}>
                     <td style={tdStyle}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{
                           width: 30, height: 30, borderRadius: '50%',
-                          background: user.status === 'emergency' ? '#dc2626' : user.status === 'warning' ? '#d97706' : '#16a34a',
+                          background: user.status === 'emergency' || user.status === 'rescue' ? '#dc2626' : user.status === 'warning' ? '#d97706' : user.status === 'resolved' ? '#3b82f6' : '#16a34a',
                           color: 'white', fontWeight: 700, fontSize: 12,
                           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                         }}>
@@ -180,8 +198,8 @@ export function DashboardPage() {
                     <td style={tdStyle}>{user.age ? `${user.age}세` : '—'}</td>
                     <td style={{
                       ...tdStyle,
-                      color: user.status === 'emergency' ? '#dc2626' : user.status === 'warning' ? '#d97706' : '#1e293b',
-                      fontWeight: user.status === 'emergency' || user.status === 'warning' ? 700 : 400,
+                      color: user.status === 'emergency' || user.status === 'rescue' ? '#dc2626' : user.status === 'warning' ? '#d97706' : '#1e293b',
+                      fontWeight: user.status === 'emergency' || user.status === 'rescue' || user.status === 'warning' ? 700 : 400,
                     }}>
                       {user.latest_heart_rate != null
                         ? `${Math.round(user.latest_heart_rate)} bpm`

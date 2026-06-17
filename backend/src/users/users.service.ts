@@ -3,7 +3,11 @@ import { SupabaseService } from '../database/supabase.service';
 import { BaselineService } from '../detection/baseline.service';
 import { RegisterPayload, UpdateProfilePayload } from './users.schema';
 import { computeAgeFromBirthDate } from './age.util';
-import { findDisplayAlert, resolveUserDisplayStatus } from '../alert/user-alert-status';
+import {
+  findDisplayAlert,
+  resolveStatusLabel,
+  resolveUserDisplayStatus,
+} from '../alert/user-alert-status';
 import { resolveUserMapLocation } from '../config/default-location';
 
 @Injectable()
@@ -154,15 +158,18 @@ export class UsersService {
           user.name,
         );
 
+        const displayStatus = resolveUserDisplayStatus(
+          displayAlert,
+          latestHeartRate,
+          user.baseline_bpm,
+          user.name,
+        );
+
         return {
           ...user,
           age: computeAgeFromBirthDate(user.birth_date),
-          status: resolveUserDisplayStatus(
-            displayAlert,
-            latestHeartRate,
-            user.baseline_bpm,
-            user.name,
-          ),
+          status: displayStatus,
+          status_label: resolveStatusLabel(displayAlert, displayStatus, user.name),
           active_alert: displayAlert,
           latest_heart_rate: latestHeartRate,
           latest_location,

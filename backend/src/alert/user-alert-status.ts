@@ -1,7 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { isPinnedRestName } from '../config/demo-display';
 
-export type UserDisplayStatus = 'normal' | 'warning' | 'emergency';
+export type UserDisplayStatus = 'normal' | 'warning' | 'emergency' | 'rescue' | 'resolved';
 
 export interface AlertStatusRef {
   id: number;
@@ -11,9 +11,11 @@ export interface AlertStatusRef {
   resolved_at?: string | null;
 }
 
-const IN_PROGRESS_STATUSES = ['triggered', 'calling', 'emergency'];
-const RECENT_EMERGENCY_WINDOW_MS = 24 * 60 * 60 * 1000;
-/** detection engine 과 동일 — 기준선 대비 150% 이상이면 휴식 요망 */
+/** 시연 중·대응 중 알림 */
+export const ACTIVE_INCIDENT_STATUSES = ['triggered', 'calling', 'emergency'] as const;
+
+const RESOLVED_DISPLAY_MS = 6 * 60 * 60 * 1000;
+const STALE_INCIDENT_MS = 2 * 60 * 60 * 1000;
 const HIGH_HR_RATIO = 1.5;
 
 export function isHighHeartRate(
@@ -25,54 +27,122 @@ export function isHighHeartRate(
   return latestBpm >= baseline * HIGH_HR_RATIO;
 }
 
-export function isInProgressAlert(alert?: AlertStatusRef | null): boolean {
-  return !!alert && IN_PROGRESS_STATUSES.includes(alert.status);
+export function isActiveIncident(alert?: AlertStatusRef | null): boolean {
+  return !!alert && (ACTIVE_INCIDENT_STATUSES as readonly string[]).includes(alert.status);
 }
 
-/** 응급(진행 중·최근 종료) > 휴식 고정 > 휴식(심박) > 정상 */
+/**
+ * 시연 플로우:
+ * triggered/calling → 응급 | emergency → 구조 필요 | closed_emergency(최근) → 처리완료 | 그 외 정상
+ */
 export function resolveUserDisplayStatus(
   displayAlert: AlertStatusRef | null,
   latestHeartRateAvg?: number | null,
   baselineBpm?: number,
   userName?: string | null,
 ): UserDisplayStatus {
-  if (isInProgressAlert(displayAlert)) return 'emergency';
-
-  if (displayAlert?.status === 'closed_emergency') return 'emergency';
+  if (displayAlert) {
+    if (displayAlert.status === 'triggered' || displayAlert.status === 'calling') {
+      return 'emergency';
+    }
+    if (displayAlert.status === 'emergency') return 'rescue';
+    if (displayAlert.status === 'closed_emergency') return 'resolved';
+  }
 
   if (isPinnedRestName(userName)) return 'warning';
-
   if (isHighHeartRate(latestHeartRateAvg, baselineBpm ?? 75)) return 'warning';
 
   return 'normal';
 }
 
-/** 대시보드용 — 진행 중 알림 + 최근 응급 종료(closed_emergency) */
+export function resolveStatusLabel(
+  displayAlert: AlertStatusRef | null,
+  displayStatus: UserDisplayStatus,
+  userName?: string | null,
+): string {
+  switch (displayAlert?.status) {
+    case 'triggered':
+    case 'calling':
+      return '응급';
+    case 'emergency':
+      return '구조 필요';
+    case 'closed_emergency':
+      return '처리완료';
+    default:
+      break;
+  }
+
+  if (displayStatus === 'warning') return '휴식';
+  return '정상';
+}
+
+function isStaleIncident(alert: AlertStatusRef): boolean {
+  if (!alert.created_at) return false;
+  if (!(ACTIVE_INCIDENT_STATUSES as readonly string[]).includes(alert.status)) return false;
+  return Date.now() - new Date(alert.created_at).getTime() > STALE_INCIDENT_MS;
+}
+
+/** 최신 알림이 종료됐는데 이전 triggered/emergency 가 남아 있으면 정리 */
+async function closeOrphanIncidents(
+  db: SupabaseClient,
+  userId: string,
+  latest: AlertStatusRef,
+): Promise<void> {
+  const terminalLatest =
+    latest.status === 'false_alarm' ||
+    latest.status === 'closed_safe' ||
+    (latest.status === 'closed_emergency' &&
+      latest.resolved_at != null &&
+      Date.now() - new Date(latest.resolved_at).getTime() >= RESOLVED_DISPLAY_MS);
+
+  if (!terminalLatest) return;
+
+  const now = new Date().toISOString();
+  await db
+    .from('alerts')
+    .update({ status: 'false_alarm', resolved_at: now })
+    .eq('user_id', userId)
+    .in('status', ['triggered', 'calling', 'emergency']);
+}
+
+/** 가장 최근 알림 기준 — false_alarm 이후엔 정상, 오래된 미종료 알림은 자동 정리 */
 export async function findDisplayAlert(
   db: SupabaseClient,
   userId: string,
 ): Promise<AlertStatusRef | null> {
-  const { data: inProgress } = await db
+  const { data: latest } = await db
     .from('alerts')
     .select('id, event_type, status, created_at, resolved_at')
     .eq('user_id', userId)
-    .in('status', IN_PROGRESS_STATUSES)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  if (inProgress) return inProgress;
+  if (!latest) return null;
 
-  const since = new Date(Date.now() - RECENT_EMERGENCY_WINDOW_MS).toISOString();
-  const { data: recentEmergency } = await db
-    .from('alerts')
-    .select('id, event_type, status, created_at, resolved_at')
-    .eq('user_id', userId)
-    .eq('status', 'closed_emergency')
-    .gte('resolved_at', since)
-    .order('resolved_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  await closeOrphanIncidents(db, userId, latest);
 
-  return recentEmergency ?? null;
+  if (latest.status === 'false_alarm' || latest.status === 'closed_safe') {
+    return null;
+  }
+
+  if (isStaleIncident(latest)) {
+    const now = new Date().toISOString();
+    await db
+      .from('alerts')
+      .update({ status: 'false_alarm', resolved_at: now })
+      .eq('id', latest.id);
+    return null;
+  }
+
+  if ((ACTIVE_INCIDENT_STATUSES as readonly string[]).includes(latest.status)) {
+    return latest;
+  }
+
+  if (latest.status === 'closed_emergency' && latest.resolved_at) {
+    const resolvedAt = new Date(latest.resolved_at).getTime();
+    if (Date.now() - resolvedAt < RESOLVED_DISPLAY_MS) return latest;
+  }
+
+  return null;
 }

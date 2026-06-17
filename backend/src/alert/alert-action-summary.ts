@@ -18,7 +18,7 @@ export function buildAlertActionSummary(
     case 'calling':
       return 'AI 확인 전화 진행 중';
     case 'emergency':
-      return '응급 대응 진행 중';
+      return '구조 필요 · 보건소 알림 발송';
     case 'false_alarm':
       return '오탐 처리';
     case 'safe':
@@ -31,7 +31,7 @@ export function buildAlertActionSummary(
         .filter(Boolean);
       if (channels.length > 0) return `보건소 알림 (${channels.join(' · ')})`;
       if (latestCall?.classification === 'emergency') return 'AI콜 응급 판정';
-      return '응급 대응 완료';
+      return '출동 지시 완료';
     }
     default:
       return '—';
