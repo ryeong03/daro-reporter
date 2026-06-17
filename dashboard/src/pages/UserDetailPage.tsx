@@ -64,6 +64,12 @@ export function UserDetailPage() {
   const isResolved = displayStatus === 'resolved';
   const bannerAlert = isUrgent ? (activeIncident ?? rescueAlert) : null;
 
+  useEffect(() => {
+    if (!isUrgent) return;
+    const interval = window.setInterval(load, 3000);
+    return () => window.clearInterval(interval);
+  }, [isUrgent, load]);
+
   const handleFalseAlarm = async () => {
     if (!activeIncident) return;
     if (!window.confirm('오탐 처리하시겠습니까?')) return;
@@ -321,7 +327,8 @@ export function UserDetailPage() {
       </div>
 
       {/* 하단 버튼 */}
-      <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+      <div style={{ marginTop: 24 }}>
+        <div style={{ display: 'flex', gap: 12 }}>
         <button
           onClick={handleDispatchComplete}
           disabled={!rescueAlert}
@@ -349,6 +356,13 @@ export function UserDetailPage() {
         >
           ✅ 오탐 처리
         </button>
+        </div>
+        {bannerAlert && !rescueAlert && (
+          <p style={{ marginTop: 10, fontSize: 13, color: '#64748b', textAlign: 'center' }}>
+            출동 지시 완료는 <strong>구조 필요</strong> 상태에서만 가능해요.
+            {activeIncident ? ' AI 전화를 받고 구조가 필요하다고 말하면 버튼이 활성화됩니다.' : ''}
+          </p>
+        )}
       </div>
     </div>
   );

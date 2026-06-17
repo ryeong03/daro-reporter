@@ -1,5 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import axios from 'axios';
 import { fetchDemoInfo, resetDemo, triggerDemoFall, DemoInfo } from '../api/client';
+
+function formatDemoError(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const msg = err.response?.data?.message;
+    if (typeof msg === 'string') return msg;
+    if (Array.isArray(msg)) return msg.join(', ');
+    if (err.response?.status === 401) return '로그인이 만료됐어요. 다시 로그인해주세요.';
+    if (err.code === 'ERR_NETWORK') return '백엔드에 연결할 수 없어요. Railway 배포 상태를 확인해주세요.';
+  }
+  return '시연 시작 실패 — 백엔드 배포 및 시연 계정을 확인해주세요.';
+}
 
 export function DemoPanel() {
   const [info, setInfo] = useState<DemoInfo | null>(null);
@@ -9,7 +21,10 @@ export function DemoPanel() {
   const load = useCallback(() => {
     fetchDemoInfo()
       .then(setInfo)
-      .catch(() => setInfo(null));
+      .catch((err) => {
+        setInfo(null);
+        setMessage(`❌ ${formatDemoError(err)}`);
+      });
   }, []);
 
   useEffect(() => {
@@ -17,7 +32,11 @@ export function DemoPanel() {
   }, [load]);
 
   const handleFall = async () => {
-    if (!window.confirm(`${info?.user.name ?? '시연 대상'}님 낙상 시연을 시작할까요?\n등록된 휴대폰으로 AI 확인 전화가 갑니다.`)) {
+    if (!info?.user) {
+      setMessage('❌ 시연 대상을 불러오지 못했어요. 백엔드 배포 후 다시 시도해주세요.');
+      return;
+    }
+    if (!window.confirm(`${info.user.name}님 낙상 시연을 시작할까요?\n등록된 휴대폰으로 AI 확인 전화가 갑니다.`)) {
       return;
     }
     setLoading(true);
@@ -26,8 +45,8 @@ export function DemoPanel() {
       const result = await triggerDemoFall();
       setMessage(`✅ ${result.demo_user.name}님에게 AI 확인 전화 발신 중`);
       load();
-    } catch {
-      setMessage('❌ 시연 시작 실패 — 백엔드 배포 및 시연 계정을 확인해주세요.');
+    } catch (err) {
+      setMessage(`❌ ${formatDemoError(err)}`);
     } finally {
       setLoading(false);
     }
@@ -71,7 +90,11 @@ export function DemoPanel() {
       <div style={cardStyle}>
         <h2 style={sectionTitle}>시연 실행</h2>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button type="button" onClick={handleFall} disabled={loading} style={btnPrimary}>
+          <button type="button" onClick={handleFall} disabled={loading || !info?.user} style={{
+            ...btnPrimary,
+            opacity: loading || !info?.user ? 0.5 : 1,
+            cursor: loading || !info?.user ? 'not-allowed' : 'pointer',
+          }}>
             {loading ? '처리 중…' : '낙상 시연 시작'}
           </button>
           <button type="button" onClick={handleReset} disabled={loading} style={btnSecondary}>

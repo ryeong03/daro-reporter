@@ -32,11 +32,11 @@ function isDemoUser(
 ): boolean {
   const demoUserId = process.env.DEMO_USER_ID?.trim();
   const demoPhone = process.env.DEMO_USER_PHONE?.trim();
-  const demoName = process.env.DEMO_USER_NAME?.trim();
+  const demoName = process.env.DEMO_USER_NAME?.trim() || '다로리';
 
   if (demoUserId && userId && userId === demoUserId) return true;
   if (demoPhone && phone && normalizePhone(phone) === normalizePhone(demoPhone)) return true;
-  if (demoName && userName && userName.trim() === demoName) return true;
+  if (userName && userName.trim() === demoName) return true;
   return false;
 }
 

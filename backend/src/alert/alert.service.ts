@@ -37,6 +37,14 @@ export class AlertService {
         .maybeSingle();
 
       if (activeAlert) {
+        if (activeAlert.status === 'triggered') {
+          this.logger.warn(
+            `Active alert ${activeAlert.id} (triggered) — retrying AI call`,
+          );
+          await this.triggerService.triggerAICall(data.user_id, 'syncope');
+          return { status: 'ok', action: 'ai_call_retried', alert_id: activeAlert.id };
+        }
+
         this.logger.warn(
           `Active alert ${activeAlert.id} (${activeAlert.status}) — skipping duplicate alert/call`,
         );
