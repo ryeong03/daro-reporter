@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { fetchAlerts, Alert } from '../api/client';
+import React from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { clearAdminToken } from '../auth/session';
 
 interface Props {
   children: React.ReactNode;
@@ -8,19 +8,12 @@ interface Props {
 
 export function Layout({ children }: Props) {
   const location = useLocation();
-  const [emergencyAlerts, setEmergencyAlerts] = useState<Alert[]>([]);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    const poll = async () => {
-      try {
-        const alerts = await fetchAlerts({ status: 'triggered' });
-        setEmergencyAlerts(alerts);
-      } catch {}
-    };
-    poll();
-    const interval = setInterval(poll, 5000);
-    return () => clearInterval(interval);
-  }, []);
+  const handleLogout = () => {
+    clearAdminToken();
+    navigate('/login', { replace: true });
+  };
 
   const navItems = [
     { path: '/', label: '🏠 홈 대시보드' },
@@ -78,18 +71,30 @@ export function Layout({ children }: Props) {
           {/* 하단 보건소 정보 */}
           <div style={{
             padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.08)',
-            display: 'flex', alignItems: 'center', gap: 10,
           }}>
-            <div style={{
-              width: 34, height: 34, borderRadius: '50%', background: '#3b82f6',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'white', fontWeight: 700, fontSize: 13,
-              boxShadow: '0 2px 6px rgba(59,130,246,0.3)',
-            }}>관</div>
-            <div>
-              <div style={{ color: 'white', fontSize: 13, fontWeight: 600 }}>청도보건소</div>
-              <div style={{ color: '#64748b', fontSize: 11, marginTop: 1 }}>관리자</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: '50%', background: '#3b82f6',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'white', fontWeight: 700, fontSize: 13,
+                boxShadow: '0 2px 6px rgba(59,130,246,0.3)',
+              }}>관</div>
+              <div>
+                <div style={{ color: 'white', fontSize: 13, fontWeight: 600 }}>청도보건소</div>
+                <div style={{ color: '#64748b', fontSize: 11, marginTop: 1 }}>관리자</div>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                width: '100%', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+                color: '#94a3b8', borderRadius: 8, padding: '8px 12px', fontSize: 12,
+                fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              로그아웃
+            </button>
           </div>
         </div>
 

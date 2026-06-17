@@ -1,6 +1,7 @@
-import { Controller, Post, Get, Patch, Body, Param, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, Query, BadRequestException, UseGuards } from '@nestjs/common';
 import { AlertService } from './alert.service';
 import { alertPayloadSchema } from './alert.schema';
+import { AdminAuthGuard } from '../admin/admin.guard';
 
 @Controller('alert')
 export class AlertController {
@@ -16,6 +17,7 @@ export class AlertController {
   }
 
   @Get()
+  @UseGuards(AdminAuthGuard)
   async listAlerts(
     @Query('user_id') userId?: string,
     @Query('status') status?: string,
@@ -26,11 +28,13 @@ export class AlertController {
   }
 
   @Get(':id')
+  @UseGuards(AdminAuthGuard)
   async getAlertDetail(@Param('id') id: string) {
     return this.alertService.getAlertDetail(id);
   }
 
   @Patch(':id')
+  @UseGuards(AdminAuthGuard)
   async updateAlertStatus(@Param('id') id: string, @Body('status') status: string) {
     return this.alertService.updateStatus(id, status);
   }

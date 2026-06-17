@@ -12,6 +12,7 @@ import { StateModule } from './state/state.module';
 import { DetectionModule } from './detection/detection.module';
 import { GuardianModule } from './guardian/guardian.module';
 import { DemoModule } from './demo/demo.module';
+import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -29,6 +30,7 @@ import { AppController } from './app.controller';
     UsersModule,
     TwilioWebhookModule,
     DemoModule,
+    AdminModule,
   ],
   controllers: [AppController],
 })

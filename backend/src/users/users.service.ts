@@ -132,7 +132,7 @@ export class UsersService {
           .in('status', ['triggered', 'calling'])
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         const { data: latestLocation } = await db
           .from('health_data')
@@ -140,7 +140,7 @@ export class UsersService {
           .eq('user_id', user.id)
           .order('timestamp', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         let status: 'normal' | 'warning' | 'emergency' = 'normal';
         if (activeAlert) {

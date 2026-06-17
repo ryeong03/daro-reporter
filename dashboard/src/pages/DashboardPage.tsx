@@ -46,7 +46,9 @@ export function DashboardPage() {
 
   const now = new Date();
   const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-  const emergencyUser = users.find(u => u.status === 'emergency');
+  const emergencyUser = users.find((u) => u.status === 'emergency');
+  const warningUser = users.find((u) => u.status === 'warning');
+  const bannerUser = emergencyUser ?? warningUser;
 
   const sortedUsers = useMemo(() => {
     const order: Record<string, number> = { emergency: 0, warning: 1, normal: 2 };
@@ -67,18 +69,27 @@ export function DashboardPage() {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>홈 대시보드</h1>
           <div style={{ fontSize: 13, color: '#94a3b8' }}>{dateStr} · 실시간 현황</div>
         </div>
-        {emergencyUser && (
+        {bannerUser && (
           <Link
-            to={`/users/${emergencyUser.id}`}
+            to={`/users/${bannerUser.id}`}
             style={{
-            background: '#fff1f2', border: '1.5px solid #fca5a5', borderRadius: 8,
+            background: bannerUser.status === 'emergency' ? '#fff1f2' : '#fffbeb',
+            border: `1.5px solid ${bannerUser.status === 'emergency' ? '#fca5a5' : '#fde68a'}`,
+            borderRadius: 8,
             padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, maxWidth: 480,
             boxShadow: '0 2px 8px rgba(220,38,38,0.1)', textDecoration: 'none',
           }}>
-            <span style={{ color: '#dc2626', fontWeight: 700, fontSize: 13 }}>
-              🔴 이상 감지 — {emergencyUser.name} | AI 콜 발신 중
+            <span style={{
+              color: bannerUser.status === 'emergency' ? '#dc2626' : '#d97706',
+              fontWeight: 700, fontSize: 13,
+            }}>
+              {bannerUser.status === 'emergency' ? '🔴' : '⚠️'} 이상 감지 — {bannerUser.name}
+              {bannerUser.status === 'emergency' ? ' | AI 콜 발신 중' : ' | 낙상 감지 · 확인 중'}
             </span>
-            <span style={{ color: '#dc2626', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 600 }}>확인 →</span>
+            <span style={{
+              color: bannerUser.status === 'emergency' ? '#dc2626' : '#d97706',
+              fontSize: 13, whiteSpace: 'nowrap', fontWeight: 600,
+            }}>확인 →</span>
           </Link>
         )}
       </div>

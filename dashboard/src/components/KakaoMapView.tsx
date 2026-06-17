@@ -87,6 +87,7 @@ export function KakaoMapView({ markers, height = 300, emptyMessage }: KakaoMapVi
     markersRef.current = [];
     labelsRef.current.forEach((lb) => lb.setMap(null));
     labelsRef.current = [];
+    infoRef.current?.close();
 
     markers.forEach((m) => {
       const pos = new kakao.maps.LatLng(m.lat, m.lng);
