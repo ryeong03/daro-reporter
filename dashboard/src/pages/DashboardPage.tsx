@@ -12,6 +12,8 @@ function toMapMarkerStatus(status: User['status']): NonNullable<MapMarker['statu
   return 'normal';
 }
 
+const DASHBOARD_LIST_LIMIT = 9;
+
 export function DashboardPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,7 +95,7 @@ export function DashboardPage() {
     return [...users].sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3));
   }, [users]);
 
-  const displayUsers = sortedUsers.slice(0, 9);
+  const displayUsers = sortedUsers.slice(0, DASHBOARD_LIST_LIMIT);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>불러오는 중...</div>;
 
@@ -159,9 +161,9 @@ export function DashboardPage() {
       </div>
 
       {/* 2단 레이아웃 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
         {/* 왼쪽: 농업인 현황 목록 */}
-        <div style={{ background: 'white', borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+        <div style={{ background: 'white', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
             <span style={{ fontWeight: 600, fontSize: 15, color: '#1e293b' }}>농업인 현황 목록</span>
             <Link to="/users" style={{ color: '#2563eb', fontSize: 13, textDecoration: 'none', fontWeight: 600 }}>
@@ -228,11 +230,11 @@ export function DashboardPage() {
                   </tr>
                 );
               })}
-              {users.length > 9 && (
+              {users.length > DASHBOARD_LIST_LIMIT && (
                 <tr>
                   <td colSpan={5} style={{ padding: '12px 20px', textAlign: 'center' }}>
                     <Link to="/users" style={{ color: '#64748b', fontSize: 13, textDecoration: 'none' }}>
-                      · · · {users.length - 9}명 더보기 (농업인 관리)
+                      · · · {users.length - DASHBOARD_LIST_LIMIT}명 더보기 (농업인 관리)
                     </Link>
                   </td>
                 </tr>
