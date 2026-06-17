@@ -16,13 +16,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+let authRedirectPending = false;
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && !error.config?.url?.includes('/admin/login')) {
       clearAdminToken();
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      if (!authRedirectPending && window.location.pathname !== '/login') {
+        authRedirectPending = true;
+        window.location.replace('/login');
       }
     }
     return Promise.reject(error);

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { getDefaultCenter, isValidMapCoord, loadKakaoMaps, normalizeMapCoord } from '../kakao/loadKakaoMaps';
+import { getDefaultCenter, loadKakaoMaps, normalizeMapCoord } from '../kakao/loadKakaoMaps';
 
 export interface MapMarker {
   id: string;
@@ -105,6 +105,13 @@ export function KakaoMapView({ markers, height = 300, emptyMessage }: KakaoMapVi
     [markers],
   );
 
+  const markersKey = useMemo(
+    () => validMarkers
+      .map((m) => `${m.id}:${m.lat}:${m.lng}:${m.status ?? ''}:${m.subtitle ?? ''}`)
+      .join('|'),
+    [validMarkers],
+  );
+
   useEffect(() => {
     if (!APP_KEY) {
       setError(
@@ -186,8 +193,8 @@ export function KakaoMapView({ markers, height = 300, emptyMessage }: KakaoMapVi
     });
 
     fitMapToMarkers(map, validMarkers);
-    refreshMapLayout(map);
-  }, [ready, validMarkers]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- markersKey로 동일 마커 재렌더 시 relayout 방지
+  }, [ready, markersKey]);
 
   if (error) {
     return (

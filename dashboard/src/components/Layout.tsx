@@ -1,12 +1,8 @@
 import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { clearAdminToken } from '../auth/session';
 
-interface Props {
-  children: React.ReactNode;
-}
-
-export function Layout({ children }: Props) {
+export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -112,7 +108,7 @@ export function Layout({ children }: Props) {
 
         {/* 메인 콘텐츠 */}
         <main style={{ flex: 1, padding: 28, overflow: 'auto', background: '#f8fafc' }}>
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>

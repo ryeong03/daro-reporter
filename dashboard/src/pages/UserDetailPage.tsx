@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api, Alert, User } from '../api/client';
 import { KakaoMapView } from '../components/KakaoMapView';
@@ -9,7 +9,7 @@ import {
   alertStatusLabel,
   eventTypeLabel,
 } from '../utils/alertStatus';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
 
 interface UserDetail {
   id: string;
@@ -29,38 +29,145 @@ interface UserDetail {
   latest_location: { lat: number; lng: number; timestamp: string } | null;
 }
 
+type DetailSnapshot = {
+  user: UserDetail;
+  alerts: Alert[];
+  displayStatus: User['status'];
+  statusLabel: string;
+  latestHeartRate: number | null;
+};
+
+const detailCache = new Map<string, DetailSnapshot>();
+
+function HeartRateChart({
+  data,
+  baseline,
+}: {
+  data: { time: string; bpm: number }[];
+  baseline: number;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      const next = el.clientWidth;
+      if (next > 0) setWidth(next);
+    };
+
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
+  return (
+    <div ref={wrapRef} style={{ width: '100%', height: 200 }}>
+      {width > 0 && (
+        <LineChart width={width} height={200} data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+          <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+          <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11, fill: '#94a3b8' }} />
+          <Tooltip />
+          <ReferenceLine
+            y={baseline}
+            stroke="#94a3b8"
+            strokeDasharray="4 4"
+            label={{ value: '기준선', fill: '#94a3b8', fontSize: 11 }}
+          />
+          <Line type="monotone" dataKey="bpm" stroke="#2563eb" strokeWidth={2} dot={false} />
+        </LineChart>
+      )}
+    </div>
+  );
+}
+
 export function UserDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [user, setUser] = useState<UserDetail | null>(null);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [displayStatus, setDisplayStatus] = useState<User['status']>('normal');
-  const [statusLabel, setStatusLabel] = useState('정상');
-  const [latestHeartRate, setLatestHeartRate] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cached = id ? detailCache.get(id) : undefined;
+  const [user, setUser] = useState<UserDetail | null>(cached?.user ?? null);
+  const [alerts, setAlerts] = useState<Alert[]>(cached?.alerts ?? []);
+  const [displayStatus, setDisplayStatus] = useState<User['status']>(cached?.displayStatus ?? 'normal');
+  const [statusLabel, setStatusLabel] = useState(cached?.statusLabel ?? '정상');
+  const [latestHeartRate, setLatestHeartRate] = useState<number | null>(cached?.latestHeartRate ?? null);
+  const [initialLoading, setInitialLoading] = useState(!cached);
+  const [loadError, setLoadError] = useState(false);
+  const requestSeqRef = useRef(0);
 
-  const load = useCallback((background = false) => {
+  const applySnapshot = useCallback((userId: string, userData: UserDetail, alertData: Alert[]) => {
+    const nextStatus = userData.status ?? 'normal';
+    const nextLabel = userData.status_label ?? '정상';
+    const nextHeartRate = userData.latest_heart_rate ?? null;
+
+    setUser(userData);
+    setAlerts(alertData);
+    setDisplayStatus(nextStatus);
+    setStatusLabel(nextLabel);
+    setLatestHeartRate(nextHeartRate);
+    setLoadError(false);
+
+    detailCache.set(userId, {
+      user: userData,
+      alerts: alertData,
+      displayStatus: nextStatus,
+      statusLabel: nextLabel,
+      latestHeartRate: nextHeartRate,
+    });
+  }, []);
+
+  const refresh = useCallback(async () => {
     if (!id) return;
-    if (!background) setLoading(true);
+    const seq = ++requestSeqRef.current;
+    try {
+      const [userData, alertData] = await Promise.all([
+        api.get(`/users/${id}`).then((r) => r.data as UserDetail),
+        api.get('/alert', { params: { user_id: id, limit: 20 } }).then((r) => r.data.alerts as Alert[]),
+      ]);
+      if (seq !== requestSeqRef.current) return;
+      applySnapshot(id, userData, alertData);
+    } catch {
+      if (seq !== requestSeqRef.current) return;
+      setLoadError(true);
+    }
+  }, [id, applySnapshot]);
+
+  useEffect(() => {
+    if (!id) {
+      setInitialLoading(false);
+      return;
+    }
+
+    const cachedSnapshot = detailCache.get(id);
+    if (cachedSnapshot) {
+      applySnapshot(id, cachedSnapshot.user, cachedSnapshot.alerts);
+      setInitialLoading(false);
+    } else {
+      setInitialLoading(true);
+      setUser(null);
+      setAlerts([]);
+    }
+
+    const seq = ++requestSeqRef.current;
+
     Promise.all([
       api.get(`/users/${id}`).then((r) => r.data as UserDetail),
       api.get('/alert', { params: { user_id: id, limit: 20 } }).then((r) => r.data.alerts as Alert[]),
     ])
       .then(([userData, alertData]) => {
-        setUser(userData);
-        setAlerts(alertData);
-        setDisplayStatus(userData.status ?? 'normal');
-        setStatusLabel(userData.status_label ?? '정상');
-        setLatestHeartRate(userData.latest_heart_rate ?? null);
+        if (seq !== requestSeqRef.current) return;
+        applySnapshot(id, userData, alertData);
       })
-      .catch(() => {})
+      .catch(() => {
+        if (seq !== requestSeqRef.current) return;
+        if (!detailCache.has(id)) setLoadError(true);
+      })
       .finally(() => {
-        if (!background) setLoading(false);
+        if (seq !== requestSeqRef.current) return;
+        setInitialLoading(false);
       });
-  }, [id]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  }, [id, applySnapshot]);
 
   const activeIncident = useMemo(() => findActiveIncident(alerts), [alerts]);
   const rescueAlert = useMemo(() => findRescueAlert(alerts), [alerts]);
@@ -76,7 +183,7 @@ export function UserDetailPage() {
     if (!window.confirm('오탐 처리하시겠습니까?')) return;
     try {
       await api.patch(`/alert/${activeIncident.id}`, { status: 'false_alarm' });
-      load(true);
+      refresh();
     } catch {
       alert('처리 중 오류가 발생했습니다.');
     }
@@ -95,11 +202,13 @@ export function UserDetailPage() {
     if (!window.confirm('출동 지시를 완료 처리할까요?')) return;
     try {
       await api.patch(`/alert/${rescueAlert.id}`, { status: 'closed_emergency' });
-      load(true);
+      refresh();
     } catch {
       alert('처리 중 오류가 발생했습니다.');
     }
   };
+
+  const locationTimestamp = user?.latest_location?.timestamp ?? '';
 
   const mapMarkers = useMemo(() => {
     if (!user?.latest_location) return [];
@@ -107,15 +216,18 @@ export function UserDetailPage() {
       displayStatus === 'rescue' ? 'emergency'
         : displayStatus === 'resolved' ? 'resolved'
           : displayStatus;
+    const subtitle = locationTimestamp
+      ? `${statusLabel} · ${new Date(locationTimestamp).toLocaleString('ko-KR')}`
+      : statusLabel;
     return [{
       id: user.id,
       name: user.name,
       lat: user.latest_location.lat,
       lng: user.latest_location.lng,
       status: mapStatus as 'normal' | 'warning' | 'emergency' | 'resolved',
-      subtitle: `${statusLabel} · ${new Date(user.latest_location.timestamp).toLocaleString('ko-KR')}`,
+      subtitle,
     }];
-  }, [user, displayStatus, statusLabel]);
+  }, [user?.id, user?.name, user?.latest_location, locationTimestamp, displayStatus, statusLabel]);
 
   const bpmData = useMemo(() => {
     const baseline = user?.baseline_bpm || 75;
@@ -130,8 +242,16 @@ export function UserDetailPage() {
     }));
   }, [user?.baseline_bpm, displayStatus, latestHeartRate]);
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>불러오는 중...</div>;
-  if (!user) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>사용자를 찾을 수 없습니다</div>;
+  if (!user) {
+    if (initialLoading) {
+      return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>불러오는 중...</div>;
+    }
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>
+        {loadError ? '데이터를 불러오지 못했습니다. 로그인 상태를 확인한 뒤 다시 시도해주세요.' : '사용자를 찾을 수 없습니다'}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -307,16 +427,7 @@ export function UserDetailPage() {
           {/* 심박수 그래프 */}
           <div style={cardStyle}>
             <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>오늘 심박수 추이</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={bpmData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <Tooltip />
-                <ReferenceLine y={user?.baseline_bpm} stroke="#94a3b8" strokeDasharray="4 4" label={{ value: '기준선', fill: '#94a3b8', fontSize: 11 }} />
-                <Line type="monotone" dataKey="bpm" stroke="#2563eb" strokeWidth={2} dot={false} />
-              </LineChart>
-            </ResponsiveContainer>
+            <HeartRateChart data={bpmData} baseline={user.baseline_bpm} />
           </div>
 
           {/* 보호자 */}
