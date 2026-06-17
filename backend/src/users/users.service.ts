@@ -9,7 +9,7 @@ import {
   resolveUserDisplayStatus,
 } from '../alert/user-alert-status';
 import { resolveUserMapLocation } from '../config/default-location';
-import { getPinnedRestHeartRate } from '../config/demo-display';
+import { getPinnedHeartRate, getPinnedAge, getPinnedLastHealthAt } from '../config/demo-display';
 
 @Injectable()
 export class UsersService {
@@ -108,7 +108,7 @@ export class UsersService {
 
     return {
       ...user,
-      age: computeAgeFromBirthDate(user.birth_date),
+      age: getPinnedAge(user.name) ?? computeAgeFromBirthDate(user.birth_date),
       guardians: guardians || [],
       latest_location,
     };
@@ -150,7 +150,7 @@ export class UsersService {
           .maybeSingle();
 
         const latestHeartRate =
-          getPinnedRestHeartRate(user.name) ??
+          getPinnedHeartRate(user.name) ??
           (latestHealth?.heart_rate_avg != null ? Number(latestHealth.heart_rate_avg) : null);
 
         const latest_location = resolveUserMapLocation(
@@ -169,13 +169,13 @@ export class UsersService {
 
         return {
           ...user,
-          age: computeAgeFromBirthDate(user.birth_date),
+          age: getPinnedAge(user.name) ?? computeAgeFromBirthDate(user.birth_date),
           status: displayStatus,
           status_label: resolveStatusLabel(displayAlert, displayStatus, user.name),
           active_alert: displayAlert,
           latest_heart_rate: latestHeartRate,
           latest_location,
-          last_health_at: latestHealth?.timestamp ?? null,
+          last_health_at: getPinnedLastHealthAt(user.name) ?? latestHealth?.timestamp ?? null,
         };
       }),
     );
