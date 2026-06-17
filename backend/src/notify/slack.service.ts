@@ -5,8 +5,8 @@ import axios from 'axios';
 interface SlackContext {
   userId: string;
   eventType: string;
-  lat: number;
-  lng: number;
+  lat?: number | null;
+  lng?: number | null;
   reason: string;
 }
 
@@ -18,6 +18,24 @@ export class SlackService {
 
   async sendAlert(message: string, context: SlackContext): Promise<void> {
     const webhookUrl = this.config.get<string>('SLACK_WEBHOOK_URL')!;
+
+    const hasCoords = context.lat != null && context.lng != null;
+    const locationField = hasCoords
+      ? { type: 'mrkdwn' as const, text: `*위치:* ${context.lat}, ${context.lng}` }
+      : { type: 'mrkdwn' as const, text: '*위치:* 미확인 (GPS 없음)' };
+    const mapField = hasCoords
+      ? {
+          type: 'mrkdwn' as const,
+          text: `*지도:* <https://map.kakao.com/link/map/${context.lat},${context.lng}|카카오맵 열기>`,
+        }
+      : null;
+
+    const fields = [
+      { type: 'mrkdwn' as const, text: `*이벤트:* ${context.eventType}` },
+      { type: 'mrkdwn' as const, text: `*사유:* ${context.reason}` },
+      locationField,
+      ...(mapField ? [mapField] : []),
+    ];
 
     await axios.post(webhookUrl, {
       text: message,
@@ -32,15 +50,7 @@ export class SlackService {
         },
         {
           type: 'section',
-          fields: [
-            { type: 'mrkdwn', text: `*이벤트:* ${context.eventType}` },
-            { type: 'mrkdwn', text: `*사유:* ${context.reason}` },
-            { type: 'mrkdwn', text: `*위치:* ${context.lat}, ${context.lng}` },
-            {
-              type: 'mrkdwn',
-              text: `*지도:* <https://map.kakao.com/link/map/${context.lat},${context.lng}|카카오맵 열기>`,
-            },
-          ],
+          fields,
         },
       ],
     });
