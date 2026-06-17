@@ -1,5 +1,4 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { isPinnedRestName } from '../config/demo-display';
 
 export type UserDisplayStatus = 'normal' | 'warning' | 'emergency' | 'rescue' | 'resolved';
 
@@ -49,7 +48,6 @@ export function resolveUserDisplayStatus(
     if (displayAlert.status === 'closed_emergency') return 'resolved';
   }
 
-  if (isPinnedRestName(userName)) return 'warning';
   if (isHighHeartRate(latestHeartRateAvg, baselineBpm ?? 75)) return 'warning';
 
   return 'normal';

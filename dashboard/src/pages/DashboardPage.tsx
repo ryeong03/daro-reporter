@@ -1,9 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchUsers, User } from '../api/client';
-import { KakaoMapView } from '../components/KakaoMapView';
+import { KakaoMapView, MapMarker } from '../components/KakaoMapView';
 import { isValidMapCoord } from '../kakao/loadKakaoMaps';
 import { formatRelativeTime } from '../utils/formatRelativeTime';
+
+function toMapMarkerStatus(status: User['status']): NonNullable<MapMarker['status']> {
+  if (status === 'rescue' || status === 'emergency') return 'emergency';
+  if (status === 'warning') return 'warning';
+  if (status === 'resolved') return 'resolved';
+  return 'normal';
+}
 
 export function DashboardPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -59,7 +66,7 @@ export function DashboardPage() {
           name: u.name,
           lat: Number(u.latest_location!.lat),
           lng: Number(u.latest_location!.lng),
-          status: u.status === 'rescue' ? 'emergency' : u.status === 'resolved' ? 'resolved' : u.status,
+          status: toMapMarkerStatus(u.status),
           subtitle: u.status_label ?? (u.status === 'emergency' ? '응급' : u.status === 'warning' ? '휴식' : '정상'),
         })),
     [users],
