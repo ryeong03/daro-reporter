@@ -187,7 +187,12 @@ export class GuardianService {
 
     return {
       user,
-      status: resolveUserDisplayStatus(displayAlert, latestHeartRate, user.baseline_bpm),
+      status: resolveUserDisplayStatus(
+        displayAlert,
+        latestHeartRate,
+        user.baseline_bpm,
+        user.name,
+      ),
       latest_health: latestHealth || null,
       active_alert: displayAlert,
     };

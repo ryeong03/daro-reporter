@@ -41,7 +41,8 @@ export interface User {
   status: 'normal' | 'warning' | 'emergency';
   active_alert: Alert | null;
   latest_heart_rate?: number | null;
-  latest_location: { lat: number; lng: number; timestamp: string } | null;
+  last_health_at?: string | null;
+  latest_location: { lat: number; lng: number; timestamp?: string } | null;
 }
 
 export interface Alert {

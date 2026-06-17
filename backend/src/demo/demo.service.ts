@@ -80,7 +80,8 @@ export class DemoService {
     }
 
     const coords =
-      getUserFixedLocation(user.phone, userId) ?? resolveCoordinates(null, user.phone, userId);
+      getUserFixedLocation(user.phone, userId, user.name) ??
+      resolveCoordinates(null, user.phone, userId, user.name);
 
     if (coords) {
       await db.from('health_data').insert({

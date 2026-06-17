@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { isPinnedRestName } from '../config/demo-display';
 
 export type UserDisplayStatus = 'normal' | 'warning' | 'emergency';
 
@@ -24,27 +25,29 @@ export function isHighHeartRate(
   return latestBpm >= baseline * HIGH_HR_RATIO;
 }
 
-/** 알림 기반 — 진행 중·최근 응급 종료는 모두 응급 */
-export function mapAlertToDisplayStatus(alert?: AlertStatusRef | null): UserDisplayStatus {
-  if (!alert) return 'normal';
-  if (IN_PROGRESS_STATUSES.includes(alert.status) || alert.status === 'closed_emergency') {
-    return 'emergency';
-  }
-  return 'normal';
+export function isInProgressAlert(alert?: AlertStatusRef | null): boolean {
+  return !!alert && IN_PROGRESS_STATUSES.includes(alert.status);
 }
 
-/** 응급(알림) > 휴식 요망(심박 상승) > 정상 */
+/** 응급(진행 중·최근 종료) > 휴식 고정 > 휴식(심박) > 정상 */
 export function resolveUserDisplayStatus(
   displayAlert: AlertStatusRef | null,
   latestHeartRateAvg?: number | null,
   baselineBpm?: number,
+  userName?: string | null,
 ): UserDisplayStatus {
-  if (mapAlertToDisplayStatus(displayAlert) === 'emergency') return 'emergency';
+  if (isInProgressAlert(displayAlert)) return 'emergency';
+
+  if (displayAlert?.status === 'closed_emergency') return 'emergency';
+
+  if (isPinnedRestName(userName)) return 'warning';
+
   if (isHighHeartRate(latestHeartRateAvg, baselineBpm ?? 75)) return 'warning';
+
   return 'normal';
 }
 
-/** 대시보드용 — 진행 중 알림 + 최근 응급 종료(closed_emergency)까지 이상 감지로 표시 */
+/** 대시보드용 — 진행 중 알림 + 최근 응급 종료(closed_emergency) */
 export async function findDisplayAlert(
   db: SupabaseClient,
   userId: string,

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { fetchUsers, User } from '../api/client';
 import { KakaoMapView } from '../components/KakaoMapView';
 import { isValidMapCoord } from '../kakao/loadKakaoMaps';
+import { formatRelativeTime } from '../utils/formatRelativeTime';
 
 export function DashboardPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -187,8 +188,8 @@ export function DashboardPage() {
                         : `${user.baseline_bpm} bpm`}
                     </td>
                     <td style={tdStyle}>
-                      {user.latest_location?.timestamp
-                        ? new Date(user.latest_location.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+                      {user.last_health_at
+                        ? formatRelativeTime(user.last_health_at)
                         : '—'}
                     </td>
                     <td style={tdStyle}>

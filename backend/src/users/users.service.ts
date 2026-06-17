@@ -4,6 +4,7 @@ import { BaselineService } from '../detection/baseline.service';
 import { RegisterPayload, UpdateProfilePayload } from './users.schema';
 import { computeAgeFromBirthDate } from './age.util';
 import { findDisplayAlert, resolveUserDisplayStatus } from '../alert/user-alert-status';
+import { resolveUserMapLocation } from '../config/default-location';
 
 @Injectable()
 export class UsersService {
@@ -85,19 +86,26 @@ export class UsersService {
       .select('*')
       .eq('user_id', id);
 
-    const { data: latestLocation } = await db
+    const { data: latestHealth } = await db
       .from('health_data')
       .select('lat, lng, timestamp')
       .eq('user_id', id)
       .order('timestamp', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    const latest_location = resolveUserMapLocation(
+      latestHealth,
+      user.phone,
+      user.id,
+      user.name,
+    );
 
     return {
       ...user,
       age: computeAgeFromBirthDate(user.birth_date),
       guardians: guardians || [],
-      latest_location: latestLocation || null,
+      latest_location,
     };
   }
 
@@ -139,19 +147,26 @@ export class UsersService {
         const latestHeartRate =
           latestHealth?.heart_rate_avg != null ? Number(latestHealth.heart_rate_avg) : null;
 
+        const latest_location = resolveUserMapLocation(
+          latestHealth,
+          user.phone,
+          user.id,
+          user.name,
+        );
+
         return {
           ...user,
           age: computeAgeFromBirthDate(user.birth_date),
-          status: resolveUserDisplayStatus(displayAlert, latestHeartRate, user.baseline_bpm),
+          status: resolveUserDisplayStatus(
+            displayAlert,
+            latestHeartRate,
+            user.baseline_bpm,
+            user.name,
+          ),
           active_alert: displayAlert,
           latest_heart_rate: latestHeartRate,
-          latest_location: latestHealth
-            ? {
-                lat: latestHealth.lat,
-                lng: latestHealth.lng,
-                timestamp: latestHealth.timestamp,
-              }
-            : null,
+          latest_location,
+          last_health_at: latestHealth?.timestamp ?? null,
         };
       }),
     );

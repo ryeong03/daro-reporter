@@ -15,22 +15,65 @@ export function normalizePhone(phone: string): string {
   return digits;
 }
 
-function isDemoUser(phone?: string | null, userId?: string | null): boolean {
+export function hasValidGps(lat: unknown, lng: unknown): boolean {
+  const la = Number(lat);
+  const ln = Number(lng);
+  return (
+    Number.isFinite(la) &&
+    Number.isFinite(ln) &&
+    !(Math.abs(la) < 0.0001 && Math.abs(ln) < 0.0001)
+  );
+}
+
+function isDemoUser(
+  phone?: string | null,
+  userId?: string | null,
+  userName?: string | null,
+): boolean {
   const demoUserId = process.env.DEMO_USER_ID?.trim();
   const demoPhone = process.env.DEMO_USER_PHONE?.trim();
+  const demoName = process.env.DEMO_USER_NAME?.trim();
 
   if (demoUserId && userId && userId === demoUserId) return true;
   if (demoPhone && phone && normalizePhone(phone) === normalizePhone(demoPhone)) return true;
+  if (demoName && userName && userName.trim() === demoName) return true;
   return false;
 }
 
-/** DEMO_USER_ID / DEMO_USER_PHONE env 로 지정된 시연 계정만 고정 좌표 사용 */
 export function getUserFixedLocation(
   phone?: string | null,
   userId?: string | null,
+  userName?: string | null,
 ): { lat: number; lng: number } | null {
-  if (!isDemoUser(phone, userId)) return null;
+  if (!isDemoUser(phone, userId, userName)) return null;
   return { lat: EWHA_STARTUP_OPEN_SPACE.lat, lng: EWHA_STARTUP_OPEN_SPACE.lng };
+}
+
+/** 지도 표시용 — 시연 고정 좌표 우선, 없으면 최근 GPS */
+export function resolveUserMapLocation(
+  latestHealth: { lat?: unknown; lng?: unknown; timestamp?: string } | null | undefined,
+  phone?: string | null,
+  userId?: string | null,
+  userName?: string | null,
+): { lat: number; lng: number; timestamp?: string } | null {
+  const fixed = getUserFixedLocation(phone, userId, userName);
+  if (fixed) {
+    return {
+      lat: fixed.lat,
+      lng: fixed.lng,
+      ...(latestHealth?.timestamp ? { timestamp: latestHealth.timestamp } : {}),
+    };
+  }
+
+  if (latestHealth && hasValidGps(latestHealth.lat, latestHealth.lng)) {
+    return {
+      lat: Number(latestHealth.lat),
+      lng: Number(latestHealth.lng),
+      ...(latestHealth.timestamp ? { timestamp: latestHealth.timestamp } : {}),
+    };
+  }
+
+  return null;
 }
 
 /** 고정 위치 시연 유저 또는 유효한 GPS만 반환. 없으면 null */
@@ -41,8 +84,9 @@ export function resolveCoordinates(
   } | null,
   userPhone?: string | null,
   userId?: string | null,
+  userName?: string | null,
 ): { lat: number; lng: number } | null {
-  const fixed = getUserFixedLocation(userPhone, userId);
+  const fixed = getUserFixedLocation(userPhone, userId, userName);
   if (fixed) return { ...fixed };
 
   const lat = source?.lat != null ? Number(source.lat) : null;
