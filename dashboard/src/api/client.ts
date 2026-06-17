@@ -48,6 +48,26 @@ export async function fetchUsers(): Promise<User[]> {
   return data.users;
 }
 
+export interface DemoInfo {
+  user: { id: string; name: string; phone: string; baseline_bpm: number };
+  active_alert: { id: number; status: string } | null;
+  script: string[];
+}
+
+export async function fetchDemoInfo(): Promise<DemoInfo> {
+  const { data } = await api.get('/demo');
+  return data;
+}
+
+export async function triggerDemoFall(): Promise<{ action: string; demo_user: { name: string; phone: string } }> {
+  const { data } = await api.post('/demo/fall');
+  return data;
+}
+
+export async function resetDemo(): Promise<void> {
+  await api.post('/demo/reset');
+}
+
 export async function fetchAlerts(params?: { user_id?: string; status?: string }): Promise<Alert[]> {
   const { data } = await api.get('/alert', { params });
   return data.alerts;

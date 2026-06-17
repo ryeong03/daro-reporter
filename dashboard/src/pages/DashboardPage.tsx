@@ -1,18 +1,25 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchUsers, User } from '../api/client';
 import { KakaoMapView } from '../components/KakaoMapView';
+import { DemoPanel } from '../components/DemoPanel';
 
 export function DashboardPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadUsers = useCallback(() => {
     fetchUsers()
       .then(setUsers)
       .catch(() => setUsers([]))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadUsers();
+    const interval = window.setInterval(loadUsers, 5000);
+    return () => window.clearInterval(interval);
+  }, [loadUsers]);
 
   const statusConfig = (status: string) => {
     switch (status) {
@@ -52,6 +59,8 @@ export function DashboardPage() {
 
   return (
     <div>
+      <DemoPanel onChanged={loadUsers} />
+
       {/* 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
@@ -59,16 +68,18 @@ export function DashboardPage() {
           <div style={{ fontSize: 13, color: '#94a3b8' }}>{dateStr} · 실시간 현황</div>
         </div>
         {emergencyUser && (
-          <div style={{
+          <Link
+            to={`/users/${emergencyUser.id}`}
+            style={{
             background: '#fff1f2', border: '1.5px solid #fca5a5', borderRadius: 8,
             padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, maxWidth: 480,
-            boxShadow: '0 2px 8px rgba(220,38,38,0.1)',
+            boxShadow: '0 2px 8px rgba(220,38,38,0.1)', textDecoration: 'none',
           }}>
             <span style={{ color: '#dc2626', fontWeight: 700, fontSize: 13 }}>
               🔴 이상 감지 — {emergencyUser.name} | AI 콜 발신 중
             </span>
-            <span style={{ color: '#dc2626', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600 }}>확인 →</span>
-          </div>
+            <span style={{ color: '#dc2626', fontSize: 13, whiteSpace: 'nowrap', fontWeight: 600 }}>확인 →</span>
+          </Link>
         )}
       </div>
 

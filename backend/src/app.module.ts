@@ -11,6 +11,7 @@ import { ExternalModule } from './external/external.module';
 import { StateModule } from './state/state.module';
 import { DetectionModule } from './detection/detection.module';
 import { GuardianModule } from './guardian/guardian.module';
+import { DemoModule } from './demo/demo.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -27,6 +28,7 @@ import { AppController } from './app.controller';
     AlertModule,
     UsersModule,
     TwilioWebhookModule,
+    DemoModule,
   ],
   controllers: [AppController],
 })
