@@ -7,6 +7,7 @@ import { AlertsPage } from './pages/AlertsPage';
 import { UserDetailPage } from './pages/UserDetailPage';
 import { UsersManagementPage } from './pages/UsersManagementPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { DemoPage } from './pages/DemoPage';
 import { LoginPage } from './pages/LoginPage';
 import './index.css';
 
@@ -26,6 +27,7 @@ function App() {
                   <Route path="/users" element={<UsersManagementPage />} />
                   <Route path="/users/:id" element={<UserDetailPage />} />
                   <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/demo" element={<DemoPage />} />
                   <Route path="*" element={<Navigate to="/" />} />
                 </Routes>
               </Layout>

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchUsers, User } from '../api/client';
 import { KakaoMapView } from '../components/KakaoMapView';
-import { DemoPanel } from '../components/DemoPanel';
 
 export function DashboardPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -61,8 +60,6 @@ export function DashboardPage() {
 
   return (
     <div>
-      <DemoPanel onChanged={loadUsers} />
-
       {/* 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
