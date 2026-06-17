@@ -59,7 +59,7 @@ export function DashboardPage() {
           name: u.name,
           lat: Number(u.latest_location!.lat),
           lng: Number(u.latest_location!.lng),
-          status: u.status === 'rescue' ? 'emergency' : u.status === 'resolved' ? 'normal' : u.status,
+          status: u.status === 'rescue' ? 'emergency' : u.status === 'resolved' ? 'resolved' : u.status,
           subtitle: u.status_label ?? (u.status === 'emergency' ? '응급' : u.status === 'warning' ? '휴식' : '정상'),
         })),
     [users],
@@ -105,7 +105,7 @@ export function DashboardPage() {
           const border = isUrgent ? '#fca5a5' : isResolved ? '#bfdbfe' : '#fde68a';
           const color = isUrgent ? '#dc2626' : isResolved ? '#1d4ed8' : '#d97706';
           const icon = isUrgent ? '🔴' : isResolved ? '✅' : '⚠️';
-          const title = isResolved ? '처리 완료' : '이상 감지';
+          const title = isResolved ? '처리완료' : '이상 감지';
           return (
           <Link
             to={`/users/${bannerUser.id}`}
@@ -198,7 +198,7 @@ export function DashboardPage() {
                     <td style={tdStyle}>{user.age ? `${user.age}세` : '—'}</td>
                     <td style={{
                       ...tdStyle,
-                      color: user.status === 'emergency' || user.status === 'rescue' ? '#dc2626' : user.status === 'warning' ? '#d97706' : '#1e293b',
+                      color: user.status === 'emergency' || user.status === 'rescue' ? '#dc2626' : user.status === 'warning' ? '#d97706' : user.status === 'resolved' ? '#1d4ed8' : '#1e293b',
                       fontWeight: user.status === 'emergency' || user.status === 'rescue' || user.status === 'warning' ? 700 : 400,
                     }}>
                       {user.latest_heart_rate != null

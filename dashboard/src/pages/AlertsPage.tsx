@@ -52,7 +52,7 @@ export function AlertsPage() {
       case 'calling': return { label: 'AI콜 중', color: '#d97706', bg: '#fffbeb' };
       case 'emergency': return { label: '응급 대응 중', color: '#dc2626', bg: '#fef2f2' };
       case 'closed_safe': return { label: '안전 종료', color: '#16a34a', bg: '#f0fdf4' };
-      case 'closed_emergency': return { label: '응급 처리', color: '#dc2626', bg: '#fef2f2' };
+      case 'closed_emergency': return { label: '처리완료', color: '#1d4ed8', bg: '#eff6ff' };
       case 'false_alarm': return { label: '오탐', color: '#94a3b8', bg: '#f8fafc' };
       default: return { label: status, color: '#64748b', bg: '#f8fafc' };
     }

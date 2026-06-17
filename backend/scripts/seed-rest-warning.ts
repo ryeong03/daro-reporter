@@ -11,6 +11,11 @@ function loadEnv() {
   }
 }
 
+const PINNED_BPM: Record<string, number> = {
+  장어르신: 92,
+  김어르신: 83,
+};
+
 async function main() {
   loadEnv();
   const names = process.argv.slice(2);
@@ -37,7 +42,7 @@ async function main() {
     }
 
     const baseline = Number(user.baseline_bpm) || 75;
-    const targetBpm = Math.ceil(baseline * 1.55);
+    const targetBpm = PINNED_BPM[name] ?? Math.ceil(baseline * 1.55);
 
     const { error: insertError } = await db.from('health_data').insert({
       user_id: user.id,

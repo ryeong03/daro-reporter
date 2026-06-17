@@ -8,7 +8,6 @@ import {
   findRescueAlert,
   alertStatusLabel,
   eventTypeLabel,
-  isActiveIncident,
 } from '../utils/alertStatus';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from 'recharts';
 
@@ -30,6 +29,8 @@ export function UserDetailPage() {
   const [user, setUser] = useState<UserDetail | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [displayStatus, setDisplayStatus] = useState<User['status']>('normal');
+  const [statusLabel, setStatusLabel] = useState('정상');
+  const [latestHeartRate, setLatestHeartRate] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
@@ -43,7 +44,10 @@ export function UserDetailPage() {
       .then(([userData, alertData, users]) => {
         setUser(userData);
         setAlerts(alertData);
-        setDisplayStatus(users.find((u) => u.id === id)?.status ?? 'normal');
+        const me = users.find((u) => u.id === id);
+        setDisplayStatus(me?.status ?? 'normal');
+        setStatusLabel(me?.status_label ?? '정상');
+        setLatestHeartRate(me?.latest_heart_rate ?? null);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -56,7 +60,9 @@ export function UserDetailPage() {
   const activeIncident = useMemo(() => findActiveIncident(alerts), [alerts]);
   const rescueAlert = useMemo(() => findRescueAlert(alerts), [alerts]);
   const resolvedAlert = useMemo(() => findRecentResolved(alerts), [alerts]);
-  const bannerAlert = activeIncident ?? rescueAlert;
+  const isUrgent = displayStatus === 'emergency' || displayStatus === 'rescue';
+  const isResolved = displayStatus === 'resolved';
+  const bannerAlert = isUrgent ? (activeIncident ?? rescueAlert) : null;
 
   const handleFalseAlarm = async () => {
     if (!activeIncident) return;
@@ -90,24 +96,32 @@ export function UserDetailPage() {
 
   const mapMarkers = useMemo(() => {
     if (!user?.latest_location) return [];
+    const mapStatus =
+      displayStatus === 'rescue' ? 'emergency'
+        : displayStatus === 'resolved' ? 'resolved'
+          : displayStatus;
     return [{
       id: user.id,
       name: user.name,
       lat: user.latest_location.lat,
       lng: user.latest_location.lng,
-      status: displayStatus,
-      subtitle: `최근 위치 · ${new Date(user.latest_location.timestamp).toLocaleString('ko-KR')}`,
+      status: mapStatus as 'normal' | 'warning' | 'emergency' | 'resolved',
+      subtitle: `${statusLabel} · ${new Date(user.latest_location.timestamp).toLocaleString('ko-KR')}`,
     }];
-  }, [user, displayStatus]);
+  }, [user, displayStatus, statusLabel]);
 
   const bpmData = useMemo(() => {
     const baseline = user?.baseline_bpm || 75;
     const hours = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+    const showSpike = displayStatus === 'emergency' || displayStatus === 'rescue';
+    const spikeBpm = latestHeartRate ?? Math.round(baseline * 1.3);
     return hours.map((time, i) => ({
       time,
-      bpm: Math.round(baseline + (Math.random() * 10 - 5) + (i === hours.length - 1 ? 60 : 0)),
+      bpm: Math.round(
+        baseline + (Math.random() * 10 - 5) + (showSpike && i === hours.length - 1 ? spikeBpm - baseline : 0),
+      ),
     }));
-  }, [user]);
+  }, [user, displayStatus, latestHeartRate]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>불러오는 중...</div>;
   if (!user) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>사용자를 찾을 수 없습니다</div>;
@@ -135,7 +149,7 @@ export function UserDetailPage() {
         </div>
       )}
 
-      {!bannerAlert && resolvedAlert && (
+      {!bannerAlert && isResolved && resolvedAlert && (
         <div style={{
           background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8,
           padding: '12px 20px', marginTop: 16, marginBottom: 20,
@@ -172,17 +186,17 @@ export function UserDetailPage() {
           </div>
 
           {/* 현재 상태 카드 */}
-          {(bannerAlert || resolvedAlert) && (
+          {(bannerAlert || (isResolved && resolvedAlert)) && (
             <div style={{
               ...cardStyle,
-              background: resolvedAlert && !bannerAlert ? '#eff6ff' : '#fef2f2',
-              border: resolvedAlert && !bannerAlert ? '1px solid #bfdbfe' : '1px solid #fecaca',
+              background: isResolved ? '#eff6ff' : '#fef2f2',
+              border: isResolved ? '1px solid #bfdbfe' : '1px solid #fecaca',
             }}>
               <h3 style={{
                 fontSize: 15, fontWeight: 600, marginBottom: 12,
-                color: resolvedAlert && !bannerAlert ? '#1d4ed8' : '#dc2626',
+                color: isResolved ? '#1d4ed8' : '#dc2626',
               }}>
-                🚨 현재 상태 — {bannerAlert ? alertStatusLabel(bannerAlert.status) : '처리완료'}
+                {isResolved ? '✅' : '🔴'} 현재 상태 — {statusLabel}
               </h3>
               {(() => {
                 const current = bannerAlert ?? resolvedAlert!;
@@ -198,7 +212,9 @@ export function UserDetailPage() {
                     </div>
                     <div style={infoRow}>
                       <span style={labelStyle}>상태</span>
-                      <span>{alertStatusLabel(current.status)}</span>
+                      <span style={{ color: isResolved ? '#1d4ed8' : '#dc2626', fontWeight: 600 }}>
+                        {statusLabel}
+                      </span>
                     </div>
                   </>
                 );

@@ -38,7 +38,7 @@ export function DemoPanel() {
     setMessage('');
     try {
       await resetDemo();
-      setMessage('✅ 시연 종료 — 대시보드 정상 상태로 복귀');
+      setMessage('✅ 시연 종료 — 심박수·상태 정상으로 복귀');
       load();
     } catch {
       setMessage('❌ 초기화 실패');

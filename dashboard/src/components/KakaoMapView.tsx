@@ -6,7 +6,7 @@ export interface MapMarker {
   name: string;
   lat: number;
   lng: number;
-  status?: 'normal' | 'warning' | 'emergency';
+  status?: 'normal' | 'warning' | 'emergency' | 'resolved';
   subtitle?: string;
 }
 
@@ -19,6 +19,7 @@ interface KakaoMapViewProps {
 const STATUS_COLOR: Record<string, string> = {
   emergency: '#dc2626',
   warning: '#eab308',
+  resolved: '#3b82f6',
   normal: '#16a34a',
 };
 

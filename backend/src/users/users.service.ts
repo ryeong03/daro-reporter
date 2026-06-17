@@ -9,6 +9,7 @@ import {
   resolveUserDisplayStatus,
 } from '../alert/user-alert-status';
 import { resolveUserMapLocation } from '../config/default-location';
+import { getPinnedRestHeartRate } from '../config/demo-display';
 
 @Injectable()
 export class UsersService {
@@ -149,7 +150,8 @@ export class UsersService {
           .maybeSingle();
 
         const latestHeartRate =
-          latestHealth?.heart_rate_avg != null ? Number(latestHealth.heart_rate_avg) : null;
+          getPinnedRestHeartRate(user.name) ??
+          (latestHealth?.heart_rate_avg != null ? Number(latestHealth.heart_rate_avg) : null);
 
         const latest_location = resolveUserMapLocation(
           latestHealth,

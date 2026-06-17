@@ -47,19 +47,44 @@ export class DemoService {
     const userId = await resolveDemoUserId(db, this.config);
     const now = new Date().toISOString();
 
+    const { data: user } = await db
+      .from('users')
+      .select('phone, name, baseline_bpm')
+      .eq('id', userId)
+      .single();
+
     const { data: closed } = await db
       .from('alerts')
       .update({ status: 'false_alarm', resolved_at: now })
       .eq('user_id', userId)
-      .in('status', ['triggered', 'calling', 'emergency'])
+      .in('status', ['triggered', 'calling', 'emergency', 'closed_emergency'])
       .select('id');
 
-    this.logger.log(`Demo reset for ${userId}: ${closed?.length ?? 0} alert(s) cleared`);
+    const baseline = user?.baseline_bpm ?? 75;
+    const coords =
+      (user && getUserFixedLocation(user.phone, userId, user.name)) ??
+      EWHA_STARTUP_OPEN_SPACE;
+
+    await db.from('health_data').insert({
+      user_id: userId,
+      timestamp: now,
+      heart_rate_avg: baseline,
+      heart_rate_samples: [{ t: now, bpm: baseline }],
+      steps_10min: 0,
+      lat: coords.lat,
+      lng: coords.lng,
+      accuracy: 10,
+    });
+
+    this.logger.log(
+      `Demo reset for ${userId}: ${closed?.length ?? 0} alert(s) cleared, HR → ${baseline} bpm`,
+    );
 
     return {
       status: 'ok',
       action: 'demo_reset',
       cleared_alerts: closed?.length ?? 0,
+      restored_heart_rate: baseline,
     };
   }
 
