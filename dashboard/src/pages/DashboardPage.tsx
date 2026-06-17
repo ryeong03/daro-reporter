@@ -27,8 +27,6 @@ export function DashboardPage() {
 
   useEffect(() => {
     loadUsers();
-    const interval = window.setInterval(loadUsers, 5000);
-    return () => window.clearInterval(interval);
   }, [loadUsers]);
 
   const statusConfig = (user: User) => {

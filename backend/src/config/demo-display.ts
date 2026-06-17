@@ -1,3 +1,6 @@
+/** 시연 낙상 트리거 시 삽입되는 심박수 */
+export const DEMO_FALL_HEART_RATE = 110;
+
 /** 시연용 고정 표시값 — 상태(휴식/정상)는 심박·기준선으로 자동 판정 */
 const PINNED_HEART_RATE: Record<string, number> = {
   장어르신: 92,

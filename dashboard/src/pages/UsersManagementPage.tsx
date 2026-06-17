@@ -123,6 +123,7 @@ export function UsersManagementPage() {
             <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
               <th style={thStyle}>이름</th>
               <th style={thStyle}>휴대폰</th>
+              <th style={thStyle}>심박수</th>
               <th style={thStyle}>등록일</th>
               <th style={thStyle}>상태</th>
               <th style={{ ...thStyle, width: 200 }}>관리</th>
@@ -137,6 +138,15 @@ export function UsersManagementPage() {
                   </Link>
                 </td>
                 <td style={tdStyle}>{user.phone}</td>
+                <td style={{
+                  ...tdStyle,
+                  color: user.status === 'emergency' || user.status === 'rescue' ? '#dc2626' : user.status === 'warning' ? '#d97706' : '#1e293b',
+                  fontWeight: user.status === 'emergency' || user.status === 'rescue' || user.status === 'warning' ? 700 : 400,
+                }}>
+                  {user.latest_heart_rate != null
+                    ? `${Math.round(user.latest_heart_rate)} bpm`
+                    : `${user.baseline_bpm} bpm`}
+                </td>
                 <td style={tdStyle}>
                   {new Date(user.created_at).toLocaleDateString('ko-KR')}
                 </td>
@@ -162,7 +172,7 @@ export function UsersManagementPage() {
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 32 }}>
+                <td colSpan={6} style={{ ...tdStyle, textAlign: 'center', color: '#94a3b8', padding: 32 }}>
                   등록된 농업인이 없습니다.
                 </td>
               </tr>

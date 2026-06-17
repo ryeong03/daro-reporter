@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { api, Alert, fetchUsers, User } from '../api/client';
+import { api, Alert, User } from '../api/client';
 import { KakaoMapView } from '../components/KakaoMapView';
 import {
   findActiveIncident,
@@ -17,9 +17,14 @@ interface UserDetail {
   phone: string;
   gender: string | null;
   birth_date: string | null;
+  age?: number | null;
   device_id: string;
   baseline_bpm: number;
   baseline_updated_at: string;
+  status: User['status'];
+  status_label?: string;
+  latest_heart_rate?: number | null;
+  last_health_at?: string | null;
   guardians: { name: string; phone: string; relation: string | null }[];
   latest_location: { lat: number; lng: number; timestamp: string } | null;
 }
@@ -33,25 +38,23 @@ export function UserDetailPage() {
   const [latestHeartRate, setLatestHeartRate] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback((options?: { silent?: boolean }) => {
+  const load = useCallback((background = false) => {
     if (!id) return;
-    if (!options?.silent) setLoading(true);
+    if (!background) setLoading(true);
     Promise.all([
-      api.get(`/users/${id}`).then((r) => r.data),
+      api.get(`/users/${id}`).then((r) => r.data as UserDetail),
       api.get('/alert', { params: { user_id: id, limit: 20 } }).then((r) => r.data.alerts as Alert[]),
-      fetchUsers(),
     ])
-      .then(([userData, alertData, users]) => {
+      .then(([userData, alertData]) => {
         setUser(userData);
         setAlerts(alertData);
-        const me = users.find((u) => u.id === id);
-        setDisplayStatus(me?.status ?? 'normal');
-        setStatusLabel(me?.status_label ?? '정상');
-        setLatestHeartRate(me?.latest_heart_rate ?? null);
+        setDisplayStatus(userData.status ?? 'normal');
+        setStatusLabel(userData.status_label ?? '정상');
+        setLatestHeartRate(userData.latest_heart_rate ?? null);
       })
       .catch(() => {})
       .finally(() => {
-        if (!options?.silent) setLoading(false);
+        if (!background) setLoading(false);
       });
   }, [id]);
 
@@ -65,20 +68,15 @@ export function UserDetailPage() {
   const isUrgent = displayStatus === 'emergency' || displayStatus === 'rescue';
   const isResolved = displayStatus === 'resolved';
   const bannerAlert = isUrgent ? (activeIncident ?? rescueAlert) : null;
-  const waitingForRescue = !!activeIncident && !rescueAlert;
 
-  useEffect(() => {
-    if (!waitingForRescue) return;
-    const interval = window.setInterval(() => load({ silent: true }), 5000);
-    return () => window.clearInterval(interval);
-  }, [waitingForRescue, load]);
+  const currentBpm = latestHeartRate ?? user?.baseline_bpm ?? 75;
 
   const handleFalseAlarm = async () => {
     if (!activeIncident) return;
     if (!window.confirm('오탐 처리하시겠습니까?')) return;
     try {
       await api.patch(`/alert/${activeIncident.id}`, { status: 'false_alarm' });
-      load();
+      load(true);
     } catch {
       alert('처리 중 오류가 발생했습니다.');
     }
@@ -97,7 +95,7 @@ export function UserDetailPage() {
     if (!window.confirm('출동 지시를 완료 처리할까요?')) return;
     try {
       await api.patch(`/alert/${rescueAlert.id}`, { status: 'closed_emergency' });
-      load();
+      load(true);
     } catch {
       alert('처리 중 오류가 발생했습니다.');
     }
@@ -123,14 +121,14 @@ export function UserDetailPage() {
     const baseline = user?.baseline_bpm || 75;
     const hours = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
     const showSpike = displayStatus === 'emergency' || displayStatus === 'rescue';
-    const spikeBpm = latestHeartRate ?? Math.round(baseline * 1.3);
+    const spikeBpm = latestHeartRate ?? baseline;
     return hours.map((time, i) => ({
       time,
       bpm: Math.round(
-        baseline + (Math.random() * 10 - 5) + (showSpike && i === hours.length - 1 ? spikeBpm - baseline : 0),
+        baseline + ((i * 7) % 11) - 5 + (showSpike && i === hours.length - 1 ? spikeBpm - baseline : 0),
       ),
     }));
-  }, [user, displayStatus, latestHeartRate]);
+  }, [user?.baseline_bpm, displayStatus, latestHeartRate]);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>불러오는 중...</div>;
   if (!user) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>사용자를 찾을 수 없습니다</div>;
@@ -184,12 +182,21 @@ export function UserDetailPage() {
               <div>
                 <div style={{ fontSize: 18, fontWeight: 700 }}>{user.name}</div>
                 <div style={{ fontSize: 13, color: '#94a3b8' }}>
-                  {user.gender === 'male' ? '남' : user.gender === 'female' ? '여' : '—'} · {user.birth_date ? `${new Date().getFullYear() - new Date(user.birth_date).getFullYear()}세` : '—'}
+                  {user.gender === 'male' ? '남' : user.gender === 'female' ? '여' : '—'} · {user.age != null ? `${user.age}세` : user.birth_date ? `${new Date().getFullYear() - new Date(user.birth_date).getFullYear()}세` : '—'}
                 </div>
               </div>
             </div>
             <div style={infoRow}><span style={labelStyle}>연락처</span><span>{user.phone}</span></div>
             <div style={infoRow}><span style={labelStyle}>디바이스</span><span>{user.device_id}</span></div>
+            <div style={infoRow}>
+              <span style={labelStyle}>현재 심박수</span>
+              <span style={{
+                color: isUrgent ? '#dc2626' : '#1e293b',
+                fontWeight: isUrgent ? 700 : 500,
+              }}>
+                {Math.round(currentBpm)} bpm
+              </span>
+            </div>
             <div style={infoRow}><span style={labelStyle}>기준선</span><span>{user.baseline_bpm} bpm</span></div>
             <div style={infoRow}><span style={labelStyle}>기준선 갱신</span><span>{new Date(user.baseline_updated_at).toLocaleDateString('ko-KR')}</span></div>
           </div>

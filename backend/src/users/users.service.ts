@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseService } from '../database/supabase.service';
 import { BaselineService } from '../detection/baseline.service';
 import { RegisterPayload, UpdateProfilePayload } from './users.schema';
@@ -91,13 +92,32 @@ export class UsersService {
       .select('*')
       .eq('user_id', id);
 
+    const statusFields = await this.buildUserStatusFields(db, user);
+
+    return {
+      ...user,
+      ...statusFields,
+      guardians: guardians || [],
+    };
+  }
+
+  private async buildUserStatusFields(
+    db: SupabaseClient,
+    user: { id: string; name: string; phone: string; baseline_bpm: number; birth_date?: string | null },
+  ) {
+    const displayAlert = await findDisplayAlert(db, user.id);
+
     const { data: latestHealth } = await db
       .from('health_data')
-      .select('lat, lng, timestamp')
-      .eq('user_id', id)
+      .select('lat, lng, timestamp, heart_rate_avg')
+      .eq('user_id', user.id)
       .order('timestamp', { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    const latestHeartRate =
+      getPinnedHeartRate(user.name) ??
+      (latestHealth?.heart_rate_avg != null ? Number(latestHealth.heart_rate_avg) : null);
 
     const latest_location = resolveUserMapLocation(
       latestHealth,
@@ -106,11 +126,21 @@ export class UsersService {
       user.name,
     );
 
+    const displayStatus = resolveUserDisplayStatus(
+      displayAlert,
+      latestHeartRate,
+      user.baseline_bpm,
+      user.name,
+    );
+
     return {
-      ...user,
       age: getPinnedAge(user.name) ?? computeAgeFromBirthDate(user.birth_date),
-      guardians: guardians || [],
+      status: displayStatus,
+      status_label: resolveStatusLabel(displayAlert, displayStatus, user.name),
+      active_alert: displayAlert,
+      latest_heart_rate: latestHeartRate,
       latest_location,
+      last_health_at: getPinnedLastHealthAt(user.name) ?? latestHealth?.timestamp ?? null,
     };
   }
 
@@ -138,46 +168,10 @@ export class UsersService {
     if (error) throw new Error('DB error');
 
     const usersWithStatus = await Promise.all(
-      (data || []).map(async (user) => {
-        const displayAlert = await findDisplayAlert(db, user.id);
-
-        const { data: latestHealth } = await db
-          .from('health_data')
-          .select('lat, lng, timestamp, heart_rate_avg')
-          .eq('user_id', user.id)
-          .order('timestamp', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        const latestHeartRate =
-          getPinnedHeartRate(user.name) ??
-          (latestHealth?.heart_rate_avg != null ? Number(latestHealth.heart_rate_avg) : null);
-
-        const latest_location = resolveUserMapLocation(
-          latestHealth,
-          user.phone,
-          user.id,
-          user.name,
-        );
-
-        const displayStatus = resolveUserDisplayStatus(
-          displayAlert,
-          latestHeartRate,
-          user.baseline_bpm,
-          user.name,
-        );
-
-        return {
-          ...user,
-          age: getPinnedAge(user.name) ?? computeAgeFromBirthDate(user.birth_date),
-          status: displayStatus,
-          status_label: resolveStatusLabel(displayAlert, displayStatus, user.name),
-          active_alert: displayAlert,
-          latest_heart_rate: latestHeartRate,
-          latest_location,
-          last_health_at: getPinnedLastHealthAt(user.name) ?? latestHealth?.timestamp ?? null,
-        };
-      }),
+      (data || []).map(async (user) => ({
+        ...user,
+        ...(await this.buildUserStatusFields(db, user)),
+      })),
     );
 
     return { users: usersWithStatus };

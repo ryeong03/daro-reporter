@@ -9,6 +9,7 @@ import { SupabaseService } from '../database/supabase.service';
 import { AlertService } from '../alert/alert.service';
 import { resolveDemoUserId } from '../config/demo-user';
 import { resolveCoordinates, getUserFixedLocation, EWHA_STARTUP_OPEN_SPACE } from '../config/default-location';
+import { DEMO_FALL_HEART_RATE } from '../config/demo-display';
 
 @Injectable()
 export class DemoService {
@@ -142,8 +143,8 @@ export class DemoService {
       await db.from('health_data').insert({
         user_id: userId,
         timestamp: new Date().toISOString(),
-        heart_rate_avg: 98,
-        heart_rate_samples: [{ t: new Date().toISOString(), bpm: 98 }],
+        heart_rate_avg: DEMO_FALL_HEART_RATE,
+        heart_rate_samples: [{ t: new Date().toISOString(), bpm: DEMO_FALL_HEART_RATE }],
         steps_10min: 120,
         lat: coords.lat,
         lng: coords.lng,
