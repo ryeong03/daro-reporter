@@ -6,9 +6,9 @@ import app.hero.heronative.data.LocationData
 object HeroLocationDefaults {
     const val ACCURACY_METERS = 10f
 
-    /** 서울 서대문구 이화여대길 52 — 이화 스타트업 오픈 스페이스 */
-    private const val EWHA_LAT = 37.562086
-    private const val EWHA_LNG = 126.946989
+    /** 서울 서대문구 이화여대길 52 — 이화스타트업오픈스페이스 (카카오 POI 기준) */
+    private const val EWHA_LAT = 37.559512
+    private const val EWHA_LNG = 126.945572
 
     private val FIXED_BY_PHONE = mapOf(
         "01025819543" to LocationData(EWHA_LAT, EWHA_LNG, ACCURACY_METERS),

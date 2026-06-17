@@ -1,10 +1,10 @@
-/** 경북 청도군 각남면 다로리 — backend DEFAULT_LAT/LNG 와 동일 */
-const DARO_CENTER = { lat: 35.6478, lng: 128.7341 };
+/** 시연 지도 기본 중심 — 이화스타트업오픈스페이스 (backend EWHA_STARTUP_OPEN_SPACE 와 동일) */
+const EWHA_CENTER = { lat: 37.559512, lng: 126.945572 };
 
 let loadPromise: Promise<typeof kakao> | null = null;
 
 export function getDefaultCenter() {
-  return DARO_CENTER;
+  return EWHA_CENTER;
 }
 
 export function loadKakaoMaps(appKey: string): Promise<typeof kakao> {
