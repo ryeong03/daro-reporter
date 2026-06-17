@@ -72,6 +72,7 @@ export async function fetchUsers(): Promise<User[]> {
 
 export interface DemoInfo {
   user: { id: string; name: string; phone: string; baseline_bpm: number };
+  location?: { label: string; address: string; roadAddress: string; lat: number; lng: number };
   active_alert: { id: number; status: string } | null;
   script: string[];
 }

@@ -61,7 +61,10 @@ export function DemoPanel() {
           </div>
         )}
         <p style={{ marginTop: 12, fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>
-          위치는 이화스타트업오픈스페이스로 고정됩니다. 앱 없이 AI 확인 전화만 진행됩니다.
+          위치: {info?.location?.address ?? '서울 서대문구 대현동 33-7'}
+          {info?.location?.label ? ` (${info.location.label})` : ''}
+          <br />
+          앱 없이 AI 확인 전화만 진행됩니다.
         </p>
       </div>
 
