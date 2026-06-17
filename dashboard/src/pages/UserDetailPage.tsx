@@ -33,9 +33,9 @@ export function UserDetailPage() {
   const [latestHeartRate, setLatestHeartRate] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(() => {
+  const load = useCallback((options?: { silent?: boolean }) => {
     if (!id) return;
-    setLoading(true);
+    if (!options?.silent) setLoading(true);
     Promise.all([
       api.get(`/users/${id}`).then((r) => r.data),
       api.get('/alert', { params: { user_id: id, limit: 20 } }).then((r) => r.data.alerts as Alert[]),
@@ -50,7 +50,9 @@ export function UserDetailPage() {
         setLatestHeartRate(me?.latest_heart_rate ?? null);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!options?.silent) setLoading(false);
+      });
   }, [id]);
 
   useEffect(() => {
@@ -63,12 +65,13 @@ export function UserDetailPage() {
   const isUrgent = displayStatus === 'emergency' || displayStatus === 'rescue';
   const isResolved = displayStatus === 'resolved';
   const bannerAlert = isUrgent ? (activeIncident ?? rescueAlert) : null;
+  const waitingForRescue = !!activeIncident && !rescueAlert;
 
   useEffect(() => {
-    if (!isUrgent) return;
-    const interval = window.setInterval(load, 3000);
+    if (!waitingForRescue) return;
+    const interval = window.setInterval(() => load({ silent: true }), 5000);
     return () => window.clearInterval(interval);
-  }, [isUrgent, load]);
+  }, [waitingForRescue, load]);
 
   const handleFalseAlarm = async () => {
     if (!activeIncident) return;
