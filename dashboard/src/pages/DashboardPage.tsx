@@ -93,7 +93,7 @@ export function DashboardPage() {
     return [...users].sort((a, b) => (order[a.status] ?? 3) - (order[b.status] ?? 3));
   }, [users]);
 
-  const displayUsers = sortedUsers.slice(0, 5);
+  const displayUsers = sortedUsers.slice(0, 9);
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>불러오는 중...</div>;
 
@@ -228,11 +228,11 @@ export function DashboardPage() {
                   </tr>
                 );
               })}
-              {users.length > 5 && (
+              {users.length > 9 && (
                 <tr>
                   <td colSpan={5} style={{ padding: '12px 20px', textAlign: 'center' }}>
                     <Link to="/users" style={{ color: '#64748b', fontSize: 13, textDecoration: 'none' }}>
-                      · · · {users.length - 5}명 더보기 (농업인 관리)
+                      · · · {users.length - 9}명 더보기 (농업인 관리)
                     </Link>
                   </td>
                 </tr>
