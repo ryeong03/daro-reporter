@@ -1,4 +1,7 @@
 # Hero
+
+[![CI](https://github.com/ryeong03/daro-reporter/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ryeong03/daro-reporter/actions/workflows/ci.yml)
+
 ## 농어촌 어르신을 위한 응급 모니터링 & AI 콜 시스템
 
 > 농어촌 어르신의 응급 상황을 가장 빠르게 알아채는 안전망.  
@@ -229,6 +232,7 @@ flowchart TD
 - [x] PC 대시보드: 농업인 목록 + 알림 이력 + 개인 상세
 - [x] 배포: Railway (백엔드) + Vercel (대시보드 + 모바일 웹)
 - [ ] Android 빌드 환경 구축 + 실기기 테스트
+- [x] 감지 엔진·기준 심박·알림 상태 단위 테스트 21개 + GitHub Actions CI (`cd backend && npm test`)
 - [ ] E2E 테스트 수행
 
 ### Phase 2 — 안정화
